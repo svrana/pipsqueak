@@ -1,11 +1,13 @@
-## Pipsqueak
+## pipsqueak
 
-Check installed dependencies dependencies against requirement, reporting
-differences. You can also use pipsqueak to parse your pip requirements file
-or the output of pip freeze.
+Check installed dependencies against a pip requirements file, reporting
+differences.
+
+You can also use pipsqueak to parse a pip requirements file or parse the
+output of pip freeze.
 
 ### How does it work?
 
-pipcheck runs 'pip freeze' and compares it against the requirements file that
+pipsqueak runs 'pip freeze' and compares it against the requirements file that
 you specify. The result is a dictionary that tells you which packages were
 added, removed, upgraded or downgraded.
