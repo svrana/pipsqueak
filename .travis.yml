@@ -1,7 +1,14 @@
 language: python
 
+# Use containers instead of full VMs for faster startup.
+sudo: false
+
 python:
     - 2.7
 
+install:
+    - travis_retry python setup.py install
+
 script:
     - py.test
+
