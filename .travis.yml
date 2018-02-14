@@ -10,8 +10,11 @@ python:
 
 install:
     - travis_retry make install
-    - bash < (curl -s https://codecov.io/bash)
+    - travis_retry pip install codecov
 
 script:
     - py.test
+
+after_success:
+    - codecov
 
