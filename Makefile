@@ -2,12 +2,13 @@
 
 help:
 	@echo "Please use 'make <target>' where <target> is one of"
-	@echo " test     run tests"
-	@echo " clean    removes all META-* and egg-info/ files created by build tools"
-	@echo " sdist    make a source distribution"
-	@echo " bdist    make an egg distribution"
-	@echo " install  install package"
-	@echo " publish  publish to pypi.python.org"
+	@echo " test         run tests"
+	@echo " clean        removes build-related files"
+	@echo " sdist        make a source distribution"
+	@echo " bdist        make an egg distribution"
+	@echo " install      install package"
+	@echo " publish      publish to pypi.python.org"
+	@echo " watch        run tests as code changes"
 
 cleanmeta:
 	-rm -rf pipsqueak.egg-info
@@ -46,7 +47,7 @@ entr-warn:
 	@echo " See http://entrproject.org/                     "
 	@echo "-------------------------------------------------"
 
-watch-test:
+watch:
 	if command -v entr > /dev/null; then ${WATCH_FILES} | \
         entr -c $(MAKE) test; else $(MAKE) test entr-warn; fi
 
