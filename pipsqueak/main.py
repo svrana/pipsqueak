@@ -1,9 +1,13 @@
+import argparse
+from collections import defaultdict
+import json
 import os.path
 import re
 from subprocess import Popen, PIPE
 
 
-PYPI_MATCH= r"([\w|\-|\.]+)\s*(\W\W)\s*([\w|\W]+)"
+PACKAGE_MATCH = r"[\w|\-\.]+"
+PYPI_MATCH= r"(%s)\s*(\W\W)\s*([\w|\W]+)" % PACKAGE_MATCH
 
 def new_descriptor(source_filename):
     desc = dict(
@@ -28,7 +32,11 @@ def _grab_project_name(req):
     elif req[0] != '-':
         match = re.match(PYPI_MATCH, req)
         if not match:
-            raise Exception("Could not find project name of for '%s'", req)
+            match = re.match(PACKAGE_MATCH, req)
+            if match:
+                return req
+            else:
+                raise Exception("Could not identify package name in '%s'", req)
         return match.group(1)
     return None
 
@@ -83,8 +91,11 @@ def _grab_location(req):
     else:
         return None
 
-    start_loc = req.index("://") + len("://")
-    return req[start_loc:end_loc]
+    try:
+        start_loc = req.index("://") + len("://")
+        return req[start_loc:end_loc]
+    except:
+        import pdb ; pdb.set_trace()
 
 def _grab_type(req):
     if "git://" in req:
@@ -133,6 +144,15 @@ def parse_requirements(reqs):
 
     return required
 
+def _set_source(reqs, source):
+    for _, details in reqs.iteritems():
+        # ones that are loaded from a sub requirment will have their
+        # source specified already
+        if details['source'] is None:
+            details['source'] = source
+
+    return reqs
+
 def parse_requirements_file(requirements):
     requirements = os.path.abspath(requirements)
     if not os.path.exists(requirements):
@@ -140,11 +160,7 @@ def parse_requirements_file(requirements):
 
     with open(requirements) as reqs:
         modules = parse_requirements(reqs)
-        for _, details in modules.iteritems():
-            # ones that are loaded from a sub requirment will have their
-            # source specified already
-            if details['source'] is None:
-                details['source'] = requirements
+        _set_source(modules, requirements)
         return modules
 
 def _get_pip_freeze_output():
@@ -156,7 +172,71 @@ def _get_pip_freeze_output():
 def parse_installed():
     reqs = _get_pip_freeze_output()
     required = parse_requirements(reqs)
+    return required
 
 def report(requirements):
     required = parse_requirements_file(requirements)
+    for _, details in required.iteritems():
+        details['source'] = None
+
     installed = parse_installed()
+    for _, details in installed.iteritems():
+        details['source'] = None
+
+    diff = defaultdict(lambda: defaultdict(dict))
+
+    for name, details in required.iteritems():
+        if name not in installed:
+            diff[name]['installed'] = 'false'
+
+        if installed[name] != details:
+            if installed[name]['type'] != details['type']:
+                diff[name]['type']['installed'] = installed[name]['type']
+                diff[name]['type']['required'] = details['type']
+            if installed[name]['location'] != details['location']:
+                diff[name]['location']['installed'] = installed[name]['location']
+                diff[name]['location']['required'] = details['location']
+            if installed[name]['attributes'] != details['attributes']:
+                diff[name]['attributes']['installed'] = installed[name]['attributes']
+                diff[name]['attributes']['required'] = details['attributes']
+            if details['version'] == None:
+                continue
+            if installed[name]['version'] != details['version']:
+                diff[name]['version']['installed'] = installed[name]['version']
+                diff[name]['version']['required'] = details['version']
+            if installed['version_sign'] != details['version_sign']:
+                diff[name]['version_sign']['installed'] = installed[name]['version_sign']
+                diff[name]['version_sign']['required'] = details['version_sign']
+
+    return diff
+
+def command_line_report(args):
+    ap = argparse.ArgumentParser(
+        description='Parse and manipulate pip dependencies'
+    )
+    ap.add_argument(
+        '--file',
+        type=str,
+        default='requirements.txt',
+        help='pip-requirements file',
+    )
+    args = ap.parse_args(args)
+
+    filename = os.path.abspath(args.file)
+    if not os.path.exists(filename):
+        print "Could not locate %s" % filename
+        return 1
+
+    diff = report(filename)
+    print json.dumps(diff, indent=4)
+
+def main():
+    ap = argparse.ArgumentParser(description='Parse and compare python dependencies')
+    ap.add_argument('command', choices=['report'])
+    ap.add_argument('args', nargs=argparse.REMAINDER)
+    args = ap.parse_args()
+
+    return command_line_report(args.args)
+
+if __name__ == '__main__':
+    main()

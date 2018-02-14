@@ -101,6 +101,19 @@ class TestParse(unittest.TestCase):
             version_sign="==",
         ))
 
+    def test_can_parse_package_no_version(self):
+        _parse_requirement("codecov", self.desc)
+        self.assertEqual(self.desc, dict(
+            type="pypi",
+            project_name="codecov",
+            version=None,
+            location=None,
+            attributes=[],
+            source=None,
+            version_sign=None,
+        ))
+
+
 
 if __name__ == '__main__':
     unittest.main()

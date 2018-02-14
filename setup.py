@@ -1,10 +1,14 @@
 #!/usr/bin/env python
 from setuptools import setup
-import pypandoc
 from pipsqueak import __version__
 
-
-long_description = pypandoc.convert('README.md', 'rst')
+try:
+    import pypandoc # also requires the pandoc package
+    long_description = pypandoc.convert('README.md', 'rst')
+except Exception:
+    f = open('README.md')
+    long_description = f.read()
+    f.close()
 
 setup(name='pipsqueak',
       version=__version__,
@@ -26,4 +30,9 @@ setup(name='pipsqueak',
       install_requires=[
       ],
       zip_safe=False,
-      )
+      entry_points={
+          'console_scripts': [
+              'pipsqueak = pipsqueak.main:main',
+          ],
+      }
+)
