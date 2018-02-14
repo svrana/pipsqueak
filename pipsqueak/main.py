@@ -7,7 +7,7 @@ PYPI_MATCH= r"\s*(\w+)\s*(\W\W)\s*([\w|\W]+)\s*"
 def new_descriptor(source_filename):
     desc = dict(
         attributes=[],
-        name=None,
+        project_name=None,
         location=None,
         version=[],
         type=None,
@@ -16,10 +16,14 @@ def new_descriptor(source_filename):
     )
     return desc
 
-def _grab_name(req):
+def _grab_project_name(req):
     if "egg=" in req:
         egg_start = req.index("egg=") + len("egg=")
-        return req[egg_start:].split(' ')[0]
+        match = re.match(PYPI_MATCH, req[egg_start:])
+        if match:
+            return match.group(1)
+        else:
+            return req[egg_start:]
     elif req[0] != '-':
         match = re.match(PYPI_MATCH, req)
         return match.group(1)
@@ -28,13 +32,21 @@ def _grab_name(req):
 def _grab_version(req):
     start_loc = None
 
-    if '@' in req:
+    if '@' in req and '==' not in req:
+        # req contains both commit and version id--
+        #   pip seems to ignore the commit and use the version in this case,
         start_loc = req.index('@') + 1
     else:
         match = re.match(PYPI_MATCH, req)
         if match:
             return match.group(3)
-        return None
+        elif '==' in req:
+            start_loc = req.index("==") + 2
+            match = re.match(PYPI_MATCH, req[start_loc:])
+            if match:
+                return match.group(3)
+        else:
+            return None
 
     while start_loc < len(req):
         if req[start_loc] == ' ':
@@ -49,11 +61,15 @@ def _grab_version(req):
     return version
 
 def _grab_version_sign(req):
-    if req.startswith('-') or req.startswith('[git|svn]+'):
-        return None
     match = re.match(PYPI_MATCH, req)
     if match:
         return match.group(2)
+    elif 'egg=' in req:
+        start_loc = req.index("egg=") + len("egg=")
+        match = re.match(PYPI_MATCH, req[start_loc:])
+        if match:
+            return match.group(2)
+
     return None
 
 def _grab_location(req):
@@ -75,12 +91,8 @@ def _grab_type(req):
     return "pypi"
 
 def _parse_requirement(req, desc):
-    """ Parses a requirement that is not pointing at pypi (or pypi type
-    server), i.e., usually a vcs or file type. Populate the type, name and
-    version fields of the descriptor. """
-
     desc['type'] = _grab_type(req)
-    desc['name'] = _grab_name(req)
+    desc['project_name'] = _grab_project_name(req)
     desc['location'] = _grab_location(req)
     desc['version'] = _grab_version(req)
     desc['version_sign'] = _grab_version_sign(req)

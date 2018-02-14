@@ -26,7 +26,7 @@ class TestParse(unittest.TestCase):
     def test_e_git_egg(self):
         _parse_requirement("-e git://github.com/ContextLogic/wheezy-captcha.git#egg=wheezy.captcha", self.desc)
         self.assertEqual(self.desc['type'], 'git')
-        self.assertEqual(self.desc['name'], 'wheezy.captcha')
+        self.assertEqual(self.desc['project_name'], 'wheezy.captcha')
         self.assertEqual(self.desc['location'], "github.com/ContextLogic/wheezy-captcha.git")
         self.assertEqual(self.desc['version'], None)
 
@@ -34,7 +34,7 @@ class TestParse(unittest.TestCase):
         _parse_requirement("git+git://github.com/ContextLogic/tornado.git@branch4.5.1#egg=tornado", self.desc)
         self.assertEqual(self.desc, dict(
             type="git",
-            name="tornado",
+            project_name="tornado",
             version="branch4.5.1",
             location="github.com/ContextLogic/tornado.git",
             attributes=[],
@@ -46,9 +46,21 @@ class TestParse(unittest.TestCase):
         _parse_requirement("pymongo==2.8", self.desc)
         self.assertEqual(self.desc, dict(
             type="pypi",
-            name="pymongo",
+            project_name="pymongo",
             version="2.8",
             location=None,
+            attributes=[],
+            source=None,
+            version_sign="==",
+        ))
+
+    def test_two_versions(self):
+        _parse_requirement("git+git://github.com/svrana/pipsqueak.git@7f9405aaf3935aa4569a803#egg=pipsqueak== 0.1.0", self.desc)
+        self.assertEqual(self.desc, dict(
+            type="git",
+            project_name="pipsqueak",
+            version="0.1.0",
+            location="github.com/svrana/pipsqueak.git",
             attributes=[],
             source=None,
             version_sign="==",
@@ -60,7 +72,7 @@ class TestParse(unittest.TestCase):
                 reqs = parse_requirements_file('test_requirements.txt')
                 self.assertEqual(reqs[0], dict(
                     type="pypi",
-                    name="scipy",
+                    project_name="scipy",
                     version="0.18.1",
                     location=None,
                     attributes=[],
