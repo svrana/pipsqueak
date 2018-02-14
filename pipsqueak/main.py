@@ -103,7 +103,7 @@ def _parse_requirement(req, desc):
     return desc
 
 def _parse_requirement_line(requirements_filename, req):
-    required = []
+    required = {}
 
     desc = new_descriptor(requirements_filename)
 
@@ -113,22 +113,24 @@ def _parse_requirement_line(requirements_filename, req):
             raise Exception("Could not parse requirement line: %s", req)
         filename = match.group(1)
         moredeps = parse_requirements_file(filename)
-        for dep in moredeps:
-            required.append(dep)
+        # TODO: check for duplicates with different specs
+        for k,v in moredeps.iteritems():
+            required[k] = v
     else:
         _parse_requirement(req, desc)
-        required.append(desc)
+        required[desc['project_name']] = desc
 
     return required
 
 def parse_requirements(reqs):
-    required = []
+    required = {}
 
     for line in reqs:
         line = line.lstrip().rstrip()
         modules = _parse_requirement_line(None, line)
-        for module in modules:
-            required.append(module)
+        for k,v in modules.iteritems():
+            required[k] = v
+
     return required
 
 def parse_requirements_file(requirements):
@@ -138,10 +140,11 @@ def parse_requirements_file(requirements):
 
     with open(requirements) as reqs:
         modules = parse_requirements(reqs)
-        for module in modules:
-            # ones that are loaded from a sub requirment will have their filenames
-            if module['source'] is None:
-                module['source'] = requirements
+        for _, details in modules.iteritems():
+            # ones that are loaded from a sub requirment will have their
+            # source specified already
+            if details['source'] is None:
+                details['source'] = requirements
         return modules
 
 def _get_pip_freeze_output():
