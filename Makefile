@@ -35,4 +35,19 @@ publish:
 test:
 	py.test
 
-.PHONY: help,cleanmeta,clean,sdist,bdist,install,publish,test
+
+WATCH_FILES=fd -e .py
+
+entr-warn:
+	@echo "-------------------------------------------------"
+	@echo " ! File watching functionality non-operational ! "
+	@echo "                                                 "
+	@echo " Install entr(1) to run tasks on file change.    "
+	@echo " See http://entrproject.org/                     "
+	@echo "-------------------------------------------------"
+
+watch-test:
+	if command -v entr > /dev/null; then ${WATCH_FILES} | \
+        entr -c $(MAKE) test; else $(MAKE) test entr-warn; fi
+
+.PHONY: help,cleanmeta,clean,sdist,bdist,install,publish,test,entr-warn,watch-test
