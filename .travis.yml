@@ -13,7 +13,7 @@ install:
     - travis_retry pip install codecov
 
 script:
-    - py.test
+    - make coverage
 
 after_success:
     - codecov
