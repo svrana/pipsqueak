@@ -5,3 +5,4 @@ build/
 *.swp
 .cache
 .coverage
+.pytest_cache/
