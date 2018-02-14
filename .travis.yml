@@ -10,7 +10,7 @@ python:
 
 install:
     - travis_retry make install
-    - travis_retry pip install codecov
+    - travis_retry pip install codecov pytest-cov
 
 script:
     - make coverage
