@@ -1,4 +1,7 @@
 __version__ = '0.0.10'
 VERSION = tuple(map(int, __version__.split('.')))
 
-from main import report
+from .main import (
+    report,
+    parse_installed,
+)

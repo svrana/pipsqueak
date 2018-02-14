@@ -1,5 +1,6 @@
 import os.path
 import re
+from subprocess import Popen, PIPE
 
 
 PYPI_MATCH= r"\s*(\w+)\s*(\W\W)\s*([\w|\W]+)\s*"
@@ -99,13 +100,6 @@ def _parse_requirement(req, desc):
 
     return desc
 
-def _cleanup_descriptor(desc):
-    for key in desc.iterkeys():
-        if isinstance(key, list):
-            continue
-
-        desc[key] = desc[key].lstrip().rstrip()
-
 def _parse_requirement_line(requirements_filename, req):
     required = []
 
@@ -119,35 +113,45 @@ def _parse_requirement_line(requirements_filename, req):
         moredeps = parse_requirements_file(filename)
         for dep in moredeps:
             required.append(dep)
-
     else:
         _parse_requirement(req, desc)
         required.append(desc)
 
     return required
 
+def parse_requirements(reqs):
+    required = []
+
+    for line in reqs:
+        line = line.rstrip()
+        modules = _parse_requirement_line(None, line)
+        for module in modules:
+            required.append(module)
+        return required
+
 def parse_requirements_file(requirements):
     requirements = os.path.abspath(requirements)
     if not os.path.exists(requirements):
         raise Exception("Could not locate requirements file %s", requirements)
 
-    required = []
-
     with open(requirements) as reqs:
-        for line in reqs:
-            line = line.rstrip()
+        modules = parse_requirements(reqs)
+        for module in modules:
+            # ones that are loaded from a sub requirment will have their filenames
+            if module['source'] is None:
+                module['source'] = requirements
+        return modules
 
-            modules = _parse_requirement_line(requirements, line)
-            for module in modules:
-                required.append(module)
-
-        return required
+def _get_pip_freeze_output():
+    process = Popen(["pip", "freeze", "."], stdout=PIPE)
+    output, _ = process.communicate()
+    process.wait()
+    return output
 
 def parse_installed():
-    installed = []
-    return installed
+    reqs = _get_pip_freeze_output()
+    required = parse_requirements(reqs)
 
 def report(requirements):
     required = parse_requirements_file(requirements)
-    #installed = parse_installed()
-    return required
+    installed = parse_installed()
