@@ -67,7 +67,7 @@ class TestParse(unittest.TestCase):
         ))
 
     def test_from_file(self):
-        with req_file("./test_requirements_001.txt", "scipy~=0.18.1"):
+        with req_file("./test_requirements_001.txt", "scipy~=0.18.1\npackage<=1.1\n"):
             with req_file("test_requirements.txt", "-r test_requirements_001.txt"):
                 reqs = parse_requirements_file('test_requirements.txt')
                 self.assertEqual(reqs[0], dict(
@@ -79,6 +79,28 @@ class TestParse(unittest.TestCase):
                     source=os.path.join(os.path.abspath(os.path.curdir), "test_requirements_001.txt"),
                     version_sign="~=",
                 ))
+                self.assertEqual(reqs[1], dict(
+                    type="pypi",
+                    project_name="package",
+                    version="1.1",
+                    location=None,
+                    attributes=[],
+                    source=os.path.join(os.path.abspath(os.path.curdir), "test_requirements_001.txt"),
+                    version_sign="<=",
+                ))
+
+
+    def test_can_parse(self):
+        _parse_requirement("backports.shutil-get-terminal-size==1.0.0", self.desc)
+        self.assertEqual(self.desc, dict(
+            type="pypi",
+            project_name="backports.shutil-get-terminal-size",
+            version="1.0.0",
+            location=None,
+            attributes=[],
+            source=None,
+            version_sign="==",
+        ))
 
 
 if __name__ == '__main__':

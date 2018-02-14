@@ -3,7 +3,7 @@ import re
 from subprocess import Popen, PIPE
 
 
-PYPI_MATCH= r"\s*(\w+)\s*(\W\W)\s*([\w|\W]+)\s*"
+PYPI_MATCH= r"\s*([\w|\-|\.]+)\s*(\W\W)\s*([\w|\W]+)\s*"
 
 def new_descriptor(source_filename):
     desc = dict(
@@ -27,6 +27,8 @@ def _grab_project_name(req):
             return req[egg_start:]
     elif req[0] != '-':
         match = re.match(PYPI_MATCH, req)
+        if not match:
+            raise Exception("Could not find project name of for '%s'", req)
         return match.group(1)
     return None
 
@@ -127,7 +129,7 @@ def parse_requirements(reqs):
         modules = _parse_requirement_line(None, line)
         for module in modules:
             required.append(module)
-        return required
+    return required
 
 def parse_requirements_file(requirements):
     requirements = os.path.abspath(requirements)
@@ -145,8 +147,8 @@ def parse_requirements_file(requirements):
 def _get_pip_freeze_output():
     process = Popen(["pip", "freeze", "."], stdout=PIPE)
     output, _ = process.communicate()
-    process.wait()
-    return output
+    reqs = [line for line in output.split('\n') if line]
+    return reqs
 
 def parse_installed():
     reqs = _get_pip_freeze_output()
