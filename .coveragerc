@@ -9,3 +9,4 @@ branch = true
 source = pipsqueak
 omit =
     pipsqueak/test/*
+    setup.py

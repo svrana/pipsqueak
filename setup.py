@@ -1,15 +1,14 @@
 #!/usr/bin/env python
-import os
 from setuptools import setup
+import pypandoc
 from pipsqueak import __version__
 
 
-with open(os.path.join(os.path.dirname(__file__), 'README.md')) as readme:
-    long_description = readme.read()
+long_description = pypandoc.convert('README.md', 'rst')
 
 setup(name='pipsqueak',
       version=__version__,
-      description='Report on differences between installed pip dependencies and their requirements',
+      description='Parse pip requirements files',
       long_description=long_description,
       url='http://github.com/svrana/pipsqueak',
       author='Shaw Vrana',

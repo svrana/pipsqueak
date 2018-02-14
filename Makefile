@@ -3,7 +3,7 @@
 help:
 	@echo "Please use 'make <target>' where <target> is one of"
 	@echo " test     run tests"
-	@echo " clean	   removes all META-* and egg-info/ files created by build tools"
+	@echo " clean    removes all META-* and egg-info/ files created by build tools"
 	@echo " sdist    make a source distribution"
 	@echo " bdist    make an egg distribution"
 	@echo " install  install package"

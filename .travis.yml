@@ -9,8 +9,8 @@ python:
     - 2.7
 
 install:
+    - travis_retry pip install -r dev-requirements.txt
     - travis_retry make install
-    - travis_retry pip install codecov pytest-cov
 
 script:
     - make coverage
