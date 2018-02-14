@@ -36,6 +36,9 @@ publish:
 test:
 	py.test
 
+shell:
+	@ipython -c 'from pipsqueak import *' -i
+
 
 WATCH_FILES=fd -e .py
 
