@@ -8,6 +8,7 @@ python:
 
 install:
     - travis_retry make install
+    - coverage
 
 script:
     - py.test

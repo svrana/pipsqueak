@@ -50,4 +50,7 @@ watch-test:
 	if command -v entr > /dev/null; then ${WATCH_FILES} | \
         entr -c $(MAKE) test; else $(MAKE) test entr-warn; fi
 
-.PHONY: help,cleanmeta,clean,sdist,bdist,install,publish,test,entr-warn,watch-test
+coverage:
+	pytest --cov=./
+
+.PHONY: help,cleanmeta,clean,sdist,bdist,install,publish,test,entr-warn,watch-test,coverage
