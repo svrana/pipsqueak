@@ -1,3 +1,5 @@
+# https://travis-ci.org/svrana/pipsqueak
+
 language: python
 
 # Use containers instead of full VMs for faster startup.
@@ -8,7 +10,7 @@ python:
 
 install:
     - travis_retry make install
-    - coverage
+    - bash < (curl -s https://codecov.io/bash)
 
 script:
     - py.test
