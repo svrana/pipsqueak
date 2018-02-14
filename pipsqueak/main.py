@@ -3,7 +3,7 @@ import re
 from subprocess import Popen, PIPE
 
 
-PYPI_MATCH= r"\s*([\w|\-|\.]+)\s*(\W\W)\s*([\w|\W]+)\s*"
+PYPI_MATCH= r"([\w|\-|\.]+)\s*(\W\W)\s*([\w|\W]+)"
 
 def new_descriptor(source_filename):
     desc = dict(
@@ -125,7 +125,7 @@ def parse_requirements(reqs):
     required = []
 
     for line in reqs:
-        line = line.rstrip()
+        line = line.lstrip().rstrip()
         modules = _parse_requirement_line(None, line)
         for module in modules:
             required.append(module)

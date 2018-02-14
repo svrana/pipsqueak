@@ -67,7 +67,7 @@ class TestParse(unittest.TestCase):
         ))
 
     def test_from_file(self):
-        with req_file("./test_requirements_001.txt", "scipy~=0.18.1\npackage<=1.1\n"):
+        with req_file("./test_requirements_001.txt", "   scipy~=0.18.1   \npackage<=1.1\n"):
             with req_file("test_requirements.txt", "-r test_requirements_001.txt"):
                 reqs = parse_requirements_file('test_requirements.txt')
                 self.assertEqual(reqs[0], dict(
