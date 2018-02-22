@@ -2,166 +2,118 @@ import argparse
 from collections import defaultdict
 import json
 import os.path
-import re
+import shlex
 from subprocess import Popen, PIPE
 
+from packaging.requirements import Specifier
 
-PACKAGE_MATCH = r"[\w|\-\.]+"
-PYPI_MATCH= r"(%s)\s*(\W\W)\s*([\w|\W]+)" % PACKAGE_MATCH
+from pipsqueak.options import break_args_options, build_parser
+from pipsqueak.pip.download import get_used_vcs_backend
+from pipsqueak.pip.req_install import InstallRequirement
 
-def new_descriptor(source_filename):
+
+def new_descriptor():
     desc = dict(
-        attributes=[],
+        editable=False,
         project_name=None,
         location=None,
         version=[],
         type=None,
-        source=source_filename,
-        version_sign=None
+        source=None,
+        specifiers=None,
     )
     return desc
 
-def _grab_project_name(req):
-    if "egg=" in req:
-        egg_start = req.index("egg=") + len("egg=")
-        match = re.match(PYPI_MATCH, req[egg_start:])
-        if match:
-            return match.group(1)
-        else:
-            return req[egg_start:]
-    elif req[0] != '-':
-        match = re.match(PYPI_MATCH, req)
-        if not match:
-            match = re.match(PACKAGE_MATCH, req)
-            if match:
-                return req
-            else:
-                raise Exception("Could not identify package name in '%s'", req)
-        return match.group(1)
-    return None
-
 def _grab_version(req):
-    start_loc = None
-
-    if '@' in req and '==' not in req:
-        # req contains both commit and version id--
-        #   pip seems to ignore the commit and use the version in this case,
-        start_loc = req.index('@') + 1
-    else:
-        match = re.match(PYPI_MATCH, req)
-        if match:
-            return match.group(3)
-        elif '==' in req:
-            start_loc = req.index("==") + 2
-            match = re.match(PYPI_MATCH, req[start_loc:])
-            if match:
-                return match.group(3)
-        else:
-            return None
-
-    while start_loc < len(req):
-        if req[start_loc] == ' ':
-            start_loc += 1
-        else:
-            break
-
-    version = req[start_loc:]
-    if '#' in version:
-        version = version[0:version.index('#')]
-
-    return version
-
-def _grab_version_sign(req):
-    match = re.match(PYPI_MATCH, req)
-    if match:
-        return match.group(2)
-    elif 'egg=' in req:
-        start_loc = req.index("egg=") + len("egg=")
-        match = re.match(PYPI_MATCH, req[start_loc:])
-        if match:
-            return match.group(2)
-
+    link = req.link
+    if link:
+        vc = get_used_vcs_backend(link)
+        if vc:
+            return vc.get_url_rev()[1]
     return None
-
-def _grab_location(req):
-    if '@' in req:
-        end_loc = req.index('@')
-    elif '#' in req:
-        end_loc = req.index('#')
-    else:
-        return None
-
-    try:
-        start_loc = req.index("://") + len("://")
-        return req[start_loc:end_loc]
-    except:
-        import pdb ; pdb.set_trace()
 
 def _grab_type(req):
-    if "git://" in req:
-        return "git"
-    elif "file://" in req:
-        return "file"
+    if req.link:
+        link = str(req.link)
+        if "git://" in link:
+            return "git"
+        elif "file://" in link:
+            return "file"
     return "pypi"
 
-def _parse_requirement(req, desc):
-    desc['type'] = _grab_type(req)
-    desc['project_name'] = _grab_project_name(req)
-    desc['location'] = _grab_location(req)
-    desc['version'] = _grab_version(req)
-    desc['version_sign'] = _grab_version_sign(req)
+def _grab_location(req):
+    link = req.link
+    if link:
+        link = req.link.url_without_fragment
+        if link:
+            if '+' in link:
+                return link.split('+')[1]
+    return link
 
+def ireq_to_desc(ireq):
+    desc = new_descriptor()
+    desc['type'] = _grab_type(ireq)
+    desc['project_name'] = ireq.name
+    desc['location'] = _grab_location(ireq)
+    desc['editable'] = ireq.editable
+    desc['specifiers'] = str(ireq.specifier) if ireq.specifier else None
+    desc['version'] = _grab_version(ireq)
+    desc['source'] = ireq.comes_from
     return desc
 
-def _parse_requirement_line(requirements_filename, req):
+def _parse_requirement(req):
+    ireq = process_line(req)
+    desc = ireq_to_desc(ireq)
+    return desc
+
+def process_line(line, source=None):
+    parser = build_parser(line)
+    defaults = parser.get_default_values()
+    args_str, options_str = break_args_options(line)
+    opts, _ = parser.parse_args(shlex.split(options_str), defaults)
+
+    if args_str:
+        return InstallRequirement.from_line(args_str, comes_from=source)
+    elif opts.editables:
+        return InstallRequirement.from_editable(opts.editables[0],
+                                                comes_from=source)
+    elif opts.requirements:
+        return _parse_requirements_file(opts.requirements[0])
+    raise Exception("Failed to process requirement", line)
+
+def parse_requirements(reqs, source=None):
     required = {}
 
-    desc = new_descriptor(requirements_filename)
-
-    if req.startswith("-r"):
-        match = re.match(r"-r \s*([\w\W]+)\s*", req)
-        if not match:
-            raise Exception("Could not parse requirement line: %s", req)
-        filename = match.group(1)
-        moredeps = parse_requirements_file(filename)
-        # TODO: check for duplicates with different specs
-        for k,v in moredeps.iteritems():
-            required[k] = v
-    else:
-        _parse_requirement(req, desc)
-        required[desc['project_name']] = desc
-
-    return required
-
-def parse_requirements(reqs):
-    required = {}
-
-    for line in reqs:
-        line = line.lstrip().rstrip()
-        modules = _parse_requirement_line(None, line)
-        for k,v in modules.iteritems():
-            required[k] = v
+    for _, line in enumerate(reqs):
+        ireq = process_line(line, source)
+        if isinstance(ireq, InstallRequirement):
+            # check for dupes
+            required[ireq.name] = ireq
+        else:
+            required.update(ireq)
 
     return required
 
 def _set_source(reqs, source):
     for _, details in reqs.iteritems():
-        # ones that are loaded from a sub requirment will have their
+        # ones that are loaded from a sub req will have their
         # source specified already
         if details['source'] is None:
             details['source'] = source
 
     return reqs
 
-def parse_requirements_file(requirements):
+def _parse_requirements_file(requirements):
     requirements = os.path.abspath(requirements)
     if not os.path.exists(requirements):
         raise Exception("Could not locate requirements file %s", requirements)
 
     with open(requirements) as reqs:
-        modules = parse_requirements(reqs)
-        _set_source(modules, requirements)
-        return modules
+        return parse_requirements(reqs, source=requirements)
+
+def parse_requirements_file(requirements):
+    reqs = _parse_requirements_file(requirements)
+    return { k:ireq_to_desc(v) for k,v in reqs.iteritems() }
 
 def _get_pip_freeze_output():
     process = Popen(["pip", "freeze", "."], stdout=PIPE)
@@ -174,20 +126,32 @@ def parse_installed():
     required = parse_requirements(reqs)
     return required
 
+def versions_match(required, installed):
+    if required is None:
+        return True
+
+    req = Specifier(required)
+    contains = req.contains(installed[2:])
+    return contains
+
 def report(requirements):
     required = parse_requirements_file(requirements)
     for _, details in required.iteritems():
         details['source'] = None
 
     installed = parse_installed()
-    for _, details in installed.iteritems():
-        details['source'] = None
+    installed = { k:ireq_to_desc(v) for k,v in installed.iteritems() }
 
     diff = defaultdict(lambda: defaultdict(dict))
 
     for name, details in required.iteritems():
         if name not in installed:
+            if details['specifiers']:
+                diff[name]['specifiers'] = details['specifiers']
+            if details['version']:
+                diff[name]['version'] = details['version']
             diff[name]['installed'] = 'false'
+            continue
 
         if installed[name] != details:
             if installed[name]['type'] != details['type']:
@@ -196,17 +160,13 @@ def report(requirements):
             if installed[name]['location'] != details['location']:
                 diff[name]['location']['installed'] = installed[name]['location']
                 diff[name]['location']['required'] = details['location']
-            if installed[name]['attributes'] != details['attributes']:
-                diff[name]['attributes']['installed'] = installed[name]['attributes']
-                diff[name]['attributes']['required'] = details['attributes']
-            if details['version'] == None:
-                continue
             if installed[name]['version'] != details['version']:
                 diff[name]['version']['installed'] = installed[name]['version']
                 diff[name]['version']['required'] = details['version']
-            if installed['version_sign'] != details['version_sign']:
-                diff[name]['version_sign']['installed'] = installed[name]['version_sign']
-                diff[name]['version_sign']['required'] = details['version_sign']
+            if installed[name]['specifiers'] != details['specifiers']:
+                if not versions_match(details['specifiers'], installed[name]['specifiers']):
+                    diff[name]['specifiers']['installed'] = installed[name]['specifiers']
+                    diff[name]['specifiers']['required'] = details['specifiers']
 
     return diff
 
@@ -229,6 +189,7 @@ def command_line_report(args):
 
     diff = report(filename)
     print json.dumps(diff, indent=4)
+    return 0
 
 def main():
     ap = argparse.ArgumentParser(description='Parse and compare python dependencies')
