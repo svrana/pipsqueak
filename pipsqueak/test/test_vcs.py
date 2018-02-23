@@ -30,5 +30,6 @@ class TestVcs(unittest.TestCase):
             type="git",
             project_name="tornado",
             version="branch4.5.1",
-            location="git://github.com/tornadoweb/tornado.git@branch4.5.1",
+            #location="git://github.com/tornadoweb/tornado.git@branch4.5.1",
+            location="git://github.com/tornadoweb/tornado.git",
         ))

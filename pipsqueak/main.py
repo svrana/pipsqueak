@@ -5,9 +5,14 @@ import os.path
 import shlex
 from subprocess import Popen, PIPE
 
-from packaging.requirements import Specifier
+from packaging.specifiers import (
+    Specifier,
+    InvalidSpecifier,
+    LegacySpecifier,
+)
 
 from pipsqueak.options import break_args_options, build_parser
+from pipsqueak.pip.vcs import vcs
 from pipsqueak.pip.util import get_used_vcs_backend
 from pipsqueak.pip.req_install import InstallRequirement
 
@@ -36,7 +41,7 @@ def _grab_version(req):
 def _grab_type(req):
     if req.link:
         link = str(req.link)
-        if "git://" in link:
+        if "git://" in link: # TODO: for all vcs
             return "git"
         elif "file://" in link:
             return "file"
@@ -45,11 +50,10 @@ def _grab_type(req):
 def _grab_location(req):
     link = req.link
     if link:
-        link = req.link.url_without_fragment
-        if link:
-            if '+' in link:
-                return link.split('+')[1]
-    return link
+        vc = get_used_vcs_backend(link)
+        if vc:
+            return vc.get_url_rev()[0]
+    return None
 
 def _ireq_to_desc(ireq):
     desc = _new_descriptor()
@@ -137,7 +141,11 @@ def _versions_match(required, installed):
     if required is None:
         return True
 
-    req = Specifier(required)
+    try:
+        req = Specifier(required)
+    except InvalidSpecifier:
+        req = LegacySpecifier(required)
+
     contains = req.contains(installed[2:])
     return contains
 
@@ -198,9 +206,10 @@ def report(requirements):
             if installed[name]['location'] != details['location']:
                 diff[name]['location']['installed'] = installed[name]['location']
                 diff[name]['location']['required'] = details['location']
-            if installed[name]['version'] != details['version']:
-                diff[name]['version']['installed'] = installed[name]['version']
-                diff[name]['version']['required'] = details['version']
+            if details['version'] != None:
+                if installed[name]['version'] != details['version']:
+                    diff[name]['version']['installed'] = installed[name]['version']
+                    diff[name]['version']['required'] = details['version']
             if installed[name]['specifiers'] != details['specifiers']:
                 if not _versions_match(details['specifiers'], installed[name]['specifiers']):
                     diff[name]['specifiers']['installed'] = installed[name]['specifiers']

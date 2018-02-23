@@ -304,6 +304,7 @@ def get_src_requirement(dist, location):
     )
     return dist.as_requirement()
 
+
 import pipsqueak.pip.vcs.git
 import pipsqueak.pip.vcs.bazaar
 import pipsqueak.pip.vcs.mercurial

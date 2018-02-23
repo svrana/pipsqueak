@@ -42,7 +42,7 @@ class TestParse(unittest.TestCase):
             type="git",
             project_name="pipsqueak",
             version="7f9405aaf3935aa4569a803",
-            location="git://github.com/svrana/pipsqueak.git@7f9405aaf3935aa4569a803",
+            location="git://github.com/svrana/pipsqueak.git",
             specifiers="==0.1.0",
         ))
 
