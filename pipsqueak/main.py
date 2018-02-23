@@ -180,6 +180,12 @@ def command_line_report(args):
         default='requirements.txt',
         help='pip-requirements file',
     )
+    ap.add_argument(
+        '-q',
+        '--quiet',
+        action='store_true',
+        help='No output, only return value'
+    )
     args = ap.parse_args(args)
 
     filename = os.path.abspath(args.file)
@@ -188,8 +194,9 @@ def command_line_report(args):
         return 1
 
     diff = report(filename)
-    print json.dumps(diff, indent=4)
-    return 0
+    if not args.quiet:
+        print json.dumps(diff, indent=4)
+    return len(diff)
 
 def main():
     ap = argparse.ArgumentParser(description='Parse and compare python dependencies')
