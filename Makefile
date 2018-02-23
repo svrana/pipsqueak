@@ -55,6 +55,6 @@ watch:
         entr -c $(MAKE) test; else $(MAKE) test entr-warn; fi
 
 coverage:
-	pytest --cov=./
+	pytest --cov=./ pipsqueak/test
 
 .PHONY: help,cleanmeta,clean,sdist,bdist,install,publish,test,entr-warn,watch-test,coverage

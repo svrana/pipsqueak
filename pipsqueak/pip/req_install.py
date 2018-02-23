@@ -20,8 +20,11 @@ from pipsqueak.pip.util import (
     is_url,
     path_to_url,
 )
+from pipsqueak.exceptions import (
+    ConfigurationError,
+    RequirementParseError,
+)
 from pipsqueak.pip.link import Link
-from pipsqueak.pip.exceptions import InstallationError
 from pipsqueak.pip.vcs import vcs
 from pipsqueak.pip.wheel import Wheel
 
@@ -113,7 +116,7 @@ class InstallRequirement(object):
             try:
                 req = Requirement(name)
             except InvalidRequirement:
-                raise InstallationError("Invalid requirement: '%s'" % name)
+                raise RequirementParseError("Invalid requirement: '%s'" % name)
         else:
             req = None
         return cls(
@@ -132,9 +135,9 @@ class InstallRequirement(object):
         try:
             req = Requirement(req)
         except InvalidRequirement:
-            raise InstallationError("Invalid requirement: '%s'" % req)
+            raise RequirementParseError("Invalid requirement: '%s'" % req)
         if req.url:
-            raise InstallationError(
+            raise ConfigurationError(
                 "Direct url requirement (like %s) are not allowed for "
                 "dependencies" % req
             )
@@ -178,7 +181,7 @@ class InstallRequirement(object):
             )
             if looks_like_dir:
                 if not is_installable_dir(p):
-                    raise InstallationError(
+                    raise RequirementParseError(
                         "Directory %r is not installable. File 'setup.py' "
                         "not found." % name
                     )
@@ -225,7 +228,7 @@ class InstallRequirement(object):
                     add_msg = "= is not a valid operator. Did you mean == ?"
                 else:
                     add_msg = traceback.format_exc()
-                raise InstallationError(
+                raise RequirementParseError(
                     "Invalid requirement: '%s'\n%s" % (req, add_msg))
         return cls(
             req, comes_from, link=link, markers=markers,
@@ -347,7 +350,7 @@ def parse_editable(editable_req):
 
     if os.path.isdir(url_no_extras):
         if not os.path.exists(os.path.join(url_no_extras, 'setup.py')):
-            raise Exception(
+            raise RequirementParseError(
                 "Directory %r is not installable. File 'setup.py' not found." %
                 url_no_extras
             )
@@ -371,7 +374,7 @@ def parse_editable(editable_req):
             break
 
     if '+' not in url:
-        raise InstallationError(
+        raise InvalidRequirement(
             '%s should either be a path to a local project or a VCS url '
             'beginning with svn+, git+, hg+, or bzr+' %
             editable_req
@@ -383,7 +386,7 @@ def parse_editable(editable_req):
         error_message = 'For --editable=%s only ' % editable_req + \
             ', '.join([backend.name + '+URL' for backend in vcs.backends]) + \
             ' is currently supported'
-        raise InstallationError(error_message)
+        raise InvalidRequirement(error_message)
 
     package_name = Link(url).egg_fragment
     if not package_name:

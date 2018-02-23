@@ -5,14 +5,10 @@ import os.path
 import re
 
 from packaging.version import parse as parse_version
-
 from six.moves.urllib import parse as urllib_parse
 from six.moves.urllib import request as urllib_request
 
 from pipsqueak.pip.compat import samefile
-from pipsqueak.pip.exceptions import BadCommand
-#from pip._internal.utils.misc import display_path
-#from pip._internal.utils.temp_dir import TempDirectory
 from pipsqueak.pip.vcs import VersionControl, vcs
 
 urlsplit = urllib_parse.urlsplit
@@ -233,7 +229,7 @@ class Git(VersionControl):
                                   show_stdout=False,
                                   on_returncode='ignore')
             return not r
-        except BadCommand:
+        except Exception:
             logger.debug("could not determine if %s is under git control "
                          "because git is not available", location)
             return False

@@ -1,19 +1,13 @@
 #!/usr/bin/env python
 
-from contextlib import contextmanager
 import os
 import unittest
+
 from pipsqueak.main import (
     parse_requirements_file,
     _parse_requirement,
 )
-
-@contextmanager
-def req_file(filename, contents):
-    with open(filename, 'w') as file:
-        file.write(contents)
-    yield
-    os.unlink(filename)
+from pipsqueak.test.util import req_file
 
 
 class TestParse(unittest.TestCase):
@@ -28,19 +22,6 @@ class TestParse(unittest.TestCase):
         self.assertEqual(self.desc['project_name'], 'wheezy.captcha')
         self.assertEqual(self.desc['location'], "git://github.com/ContextLogic/wheezy-captcha.git")
         self.assertEqual(self.desc['editable'], True)
-
-    def test_git_branch(self):
-        self.desc = _parse_requirement("git+git://github.com/ContextLogic/tornado.git@branch4.5.1#egg=tornado")
-        self.assertEqual(self.desc, dict(
-            type="git",
-            project_name="tornado",
-            version="branch4.5.1",
-            location="git://github.com/ContextLogic/tornado.git@branch4.5.1",
-            editable=False,
-            source=None,
-            specifiers=None,
-            line_number=None,
-        ))
 
     def test_cannonical_1(self):
         self.desc = _parse_requirement("pymongo==2.8")
@@ -120,32 +101,6 @@ class TestParse(unittest.TestCase):
             line_number=None,
         ))
 
-    def test_can_parse_svn(self):
-        self.desc = _parse_requirement("svn+http://myrepo/svn/MyApp#egg=MyApp")
-        self.assertEqual(self.desc, dict(
-            type="pypi",
-            project_name="MyApp",
-            source=None,
-            location="http://myrepo/svn/MyApp",
-            specifiers=None,
-            editable=False,
-            version=None,
-            line_number=None,
-        ))
-
-    def test_can_parse_mercurial(self):
-        self.desc = _parse_requirement("hg+https://myrepo/hg/MyApp#egg=MyApp")
-        self.assertEqual(self.desc, dict(
-            type="pypi",
-            project_name="MyApp",
-            location="https://myrepo/hg/MyApp",
-            source=None,
-            specifiers=None,
-            editable=False,
-            version=None,
-            line_number=None,
-        ))
-
     def test_can_parse_package_no_version(self):
         self.desc = _parse_requirement("codecov")
         self.assertEqual(self.desc, dict(
@@ -158,12 +113,6 @@ class TestParse(unittest.TestCase):
             specifiers=None,
             line_number=None,
         ))
-
-    # def test_malformed_from_file(self):
-    #     with req_file("./test_requirements_003.txt", "scipy(=0.18.1"):
-    #         pass
-
-
 
 if __name__ == '__main__':
     unittest.main()

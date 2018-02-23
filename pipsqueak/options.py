@@ -3,7 +3,7 @@ import optparse
 from optparse import Option
 
 from pipsqueak.pip.index import PyPI
-from pipsqueak.pip.exceptions import RequirementsFileParseError
+from pipsqueak.exceptions import RequirementsFileParseError
 
 
 def constraints():

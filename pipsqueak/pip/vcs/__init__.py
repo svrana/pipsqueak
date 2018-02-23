@@ -1,8 +1,8 @@
 """Handles all VCS (version control) support"""
 import logging
 import os
+
 from six.moves.urllib import parse as urllib_parse
-from pipsqueak.pip.exceptions import BadCommand
 
 
 __all__ = ['vcs', 'get_src_requirement']
@@ -289,7 +289,7 @@ def get_src_requirement(dist, location):
         try:
             return version_control().get_src_requirement(dist,
                                                          location)
-        except BadCommand:
+        except Exception:
             logger.warning(
                 'cannot determine version of editable source in %s '
                 '(%s command not found in path)',
@@ -307,5 +307,4 @@ def get_src_requirement(dist, location):
 import pipsqueak.pip.vcs.git
 import pipsqueak.pip.vcs.bazaar
 import pipsqueak.pip.vcs.mercurial
-import pipsqueak.pip.vcs.git
 import pipsqueak.pip.vcs.subversion

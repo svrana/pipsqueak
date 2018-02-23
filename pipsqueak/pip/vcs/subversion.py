@@ -4,8 +4,12 @@ import logging
 import os
 import re
 
+from six.moves.urllib import parse as urllib_parse
+
 from pipsqueak.pip.link import Link
 from pipsqueak.pip.vcs import VersionControl, vcs
+from pipsqueak.pip.util import display_path
+
 
 _svn_xml_url_re = re.compile('url="([^"]+)"')
 _svn_rev_re = re.compile(r'committed-rev="(\d+)"')
@@ -124,7 +128,6 @@ class Subversion(VersionControl):
         return self._get_svn_url_rev(location)[0]
 
     def _get_svn_url_rev(self, location):
-        from pip._internal.exceptions import InstallationError
 
         entries_path = os.path.join(location, self.dirname, 'entries')
         if os.path.exists(entries_path):
@@ -157,7 +160,7 @@ class Subversion(VersionControl):
                 revs = [
                     int(m.group(1)) for m in _svn_info_xml_rev_re.finditer(xml)
                 ]
-            except InstallationError:
+            except Exception:
                 url, revs = None, []
 
         if revs:
@@ -179,52 +182,5 @@ class Subversion(VersionControl):
     def is_commit_id_equal(self, dest, name):
         """Always assume the versions don't match"""
         return False
-
-    @staticmethod
-    def remove_auth_from_url(url):
-        # Return a copy of url with 'username:password@' removed.
-        # username/pass params are passed to subversion through flags
-        # and are not recognized in the url.
-
-        # parsed url
-        purl = urllib_parse.urlsplit(url)
-        stripped_netloc = \
-            purl.netloc.split('@')[-1]
-
-        # stripped url
-        url_pieces = (
-            purl.scheme, stripped_netloc, purl.path, purl.query, purl.fragment
-        )
-        surl = urllib_parse.urlunsplit(url_pieces)
-        return surl
-
-
-def get_rev_options(vcs, url, rev):
-    """
-    Return a RevOptions object.
-    """
-    r = urllib_parse.urlsplit(url)
-    if hasattr(r, 'username'):
-        # >= Python-2.5
-        username, password = r.username, r.password
-    else:
-        netloc = r[1]
-        if '@' in netloc:
-            auth = netloc.split('@')[0]
-            if ':' in auth:
-                username, password = auth.split(':', 1)
-            else:
-                username, password = auth, None
-        else:
-            username, password = None, None
-
-    extra_args = []
-    if username:
-        extra_args += ['--username', username]
-    if password:
-        extra_args += ['--password', password]
-
-    return vcs.make_rev_options(rev, extra_args=extra_args)
-
 
 vcs.register(Subversion)
