@@ -20,6 +20,7 @@ def new_descriptor():
         version=[],
         type=None,
         source=None,
+        line_number=None,
         specifiers=None,
     )
     return desc
@@ -52,13 +53,19 @@ def _grab_location(req):
 
 def ireq_to_desc(ireq):
     desc = new_descriptor()
+
     desc['type'] = _grab_type(ireq)
     desc['project_name'] = ireq.name
     desc['location'] = _grab_location(ireq)
     desc['editable'] = ireq.editable
     desc['specifiers'] = str(ireq.specifier) if ireq.specifier else None
     desc['version'] = _grab_version(ireq)
-    desc['source'] = ireq.comes_from
+    desc['source'] = None
+    desc['line_number'] = None
+    if ireq.comes_from:
+        desc['source'] = ireq.comes_from.split(':')[0]
+        desc['line_number'] = int(ireq.comes_from.split(':')[1])
+
     return desc
 
 def _parse_requirement(req):
@@ -71,18 +78,22 @@ def _add_ireq(reqset, ireq):
     # todo: catch duplicates
     reqset[ireq.name] = ireq
 
-def process_line(line, reqset, source=None):
+def process_line(line, reqset, source=None, lineno=None):
     parser = build_parser(line)
     defaults = parser.get_default_values()
     args_str, options_str = break_args_options(line)
     opts, _ = parser.parse_args(shlex.split(options_str), defaults)
 
+    if source:
+        comes_from = "%s:%s" % (source, lineno)
+    else:
+        comes_from = None
+
     if args_str:
-        ireq = InstallRequirement.from_line(args_str, comes_from=source)
+        ireq = InstallRequirement.from_line(args_str, comes_from=comes_from)
         _add_ireq(reqset, ireq)
     elif opts.editables:
-        ireq = InstallRequirement.from_editable(opts.editables[0],
-                                                comes_from=source)
+        ireq = InstallRequirement.from_editable(opts.editables[0], comes_from=comes_from)
         _add_ireq(reqset, ireq)
     elif opts.requirements:
         for ireq in _parse_requirements_file(opts.requirements[0]).itervalues():
@@ -90,11 +101,18 @@ def process_line(line, reqset, source=None):
     else:
         raise Exception("Failed to process requirement", line)
 
-def parse_requirements(reqs, source=None):
+def yield_lines(strs):
+    """ Yield non-empty/non-comment lines along with their line numbers. """
+    for lineno, line in enumerate(strs):
+        line = line.strip()
+        if line and not line.startswith('#'):
+            yield lineno+1, line
+
+def parse_requirements_iterable(reqs, source=None):
     reqset = {}
 
-    for _, line in enumerate(reqs):
-        process_line(line, reqset, source=source)
+    for lineno, line in yield_lines(reqs):
+        process_line(line, reqset, source=source, lineno=lineno)
 
     return reqset
 
@@ -104,7 +122,7 @@ def _parse_requirements_file(requirements):
         raise Exception("Could not locate requirements file %s", requirements)
 
     with open(requirements) as reqs:
-        return parse_requirements(reqs, source=requirements)
+        return parse_requirements_iterable(reqs, source=requirements)
 
 def parse_requirements_file(requirements):
     reqs = _parse_requirements_file(requirements)
@@ -118,10 +136,10 @@ def _get_pip_freeze_output():
 
 def parse_installed():
     reqs = _get_pip_freeze_output()
-    required = parse_requirements(reqs)
+    required = parse_requirements_iterable(reqs)
     return required
 
-def versions_match(required, installed):
+def _versions_match(required, installed):
     if required is None:
         return True
 
@@ -159,7 +177,7 @@ def report(requirements):
                 diff[name]['version']['installed'] = installed[name]['version']
                 diff[name]['version']['required'] = details['version']
             if installed[name]['specifiers'] != details['specifiers']:
-                if not versions_match(details['specifiers'], installed[name]['specifiers']):
+                if not _versions_match(details['specifiers'], installed[name]['specifiers']):
                     diff[name]['specifiers']['installed'] = installed[name]['specifiers']
                     diff[name]['specifiers']['required'] = details['specifiers']
 

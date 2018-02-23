@@ -39,6 +39,7 @@ class TestParse(unittest.TestCase):
             editable=False,
             source=None,
             specifiers=None,
+            line_number=None,
         ))
 
     def test_cannonical_1(self):
@@ -51,6 +52,7 @@ class TestParse(unittest.TestCase):
             editable=False,
             source=None,
             version=None,
+            line_number=None,
         ))
 
     def test_two_versions(self):
@@ -63,6 +65,7 @@ class TestParse(unittest.TestCase):
             editable=False,
             source=None,
             specifiers="==0.1.0",
+            line_number=None,
         ))
 
     def test_from_file(self):
@@ -76,6 +79,7 @@ class TestParse(unittest.TestCase):
                 editable=False,
                 source=os.path.join(os.path.abspath(os.path.curdir), "test_requirements_000.txt"),
                 specifiers="<=6.0",
+                line_number=1,
             ))
 
     def test_from_file_in_file(self):
@@ -90,6 +94,7 @@ class TestParse(unittest.TestCase):
                     editable=False,
                     source=os.path.join(os.path.abspath(os.path.curdir), "test_requirements_001.txt"),
                     specifiers="~=0.18.1",
+                    line_number=1,
                 ))
                 self.assertEqual(reqs['package'], dict(
                    type="pypi",
@@ -99,6 +104,7 @@ class TestParse(unittest.TestCase):
                    location=None,
                    editable=False,
                    source=os.path.join(os.path.abspath(os.path.curdir), "test_requirements_001.txt"),
+                   line_number=2,
                ))
 
     def test_can_parse(self):
@@ -111,6 +117,7 @@ class TestParse(unittest.TestCase):
             specifiers="==1.0.0",
             editable=False,
             version=None,
+            line_number=None,
         ))
 
     def test_can_parse_package_no_version(self):
@@ -123,6 +130,7 @@ class TestParse(unittest.TestCase):
             source=None,
             editable=False,
             specifiers=None,
+            line_number=None,
         ))
 
 
