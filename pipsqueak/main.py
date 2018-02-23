@@ -40,11 +40,14 @@ def _grab_version(req):
 
 def _grab_type(req):
     if req.link:
-        link = str(req.link)
-        if "git://" in link: # TODO: for all vcs
-            return "git"
-        elif "file://" in link:
+        link = req.link
+        for backend in vcs.backends:
+            if link.scheme in backend.schemes:
+                return link.scheme
+
+        if "file://" in str(link):
             return "file"
+
     return "pypi"
 
 def _grab_location(req):
