@@ -133,6 +133,10 @@ class TestParse(unittest.TestCase):
             line_number=None,
         ))
 
+    def test_malformed_from_file(self):
+        with req_file("./test_requirements_003.txt", "scipy(=0.18.1"):
+            pass
+
 
 if __name__ == '__main__':
     unittest.main()

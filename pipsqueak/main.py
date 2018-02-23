@@ -12,7 +12,7 @@ from pipsqueak.pip.download import get_used_vcs_backend
 from pipsqueak.pip.req_install import InstallRequirement
 
 
-def new_descriptor():
+def _new_descriptor():
     desc = dict(
         editable=False,
         project_name=None,
@@ -51,8 +51,8 @@ def _grab_location(req):
                 return link.split('+')[1]
     return link
 
-def ireq_to_desc(ireq):
-    desc = new_descriptor()
+def _ireq_to_desc(ireq):
+    desc = _new_descriptor()
 
     desc['type'] = _grab_type(ireq)
     desc['project_name'] = ireq.name
@@ -70,15 +70,15 @@ def ireq_to_desc(ireq):
 
 def _parse_requirement(req):
     reqset = {}
-    process_line(req, reqset)
-    desc = ireq_to_desc(reqset[reqset.keys()[0]])
+    _process_line(req, reqset)
+    desc = _ireq_to_desc(reqset[reqset.keys()[0]])
     return desc
 
 def _add_ireq(reqset, ireq):
     # todo: catch duplicates
     reqset[ireq.name] = ireq
 
-def process_line(line, reqset, source=None, lineno=None):
+def _process_line(line, reqset, source=None, lineno=None):
     parser = build_parser(line)
     defaults = parser.get_default_values()
     args_str, options_str = break_args_options(line)
@@ -101,18 +101,18 @@ def process_line(line, reqset, source=None, lineno=None):
     else:
         raise Exception("Failed to process requirement", line)
 
-def yield_lines(strs):
-    """ Yield non-empty/non-comment lines along with their line numbers. """
+def _yield_lines(strs):
+    """ Yield non-empty/non-comment lines with their line numbers. """
     for lineno, line in enumerate(strs):
         line = line.strip()
         if line and not line.startswith('#'):
             yield lineno+1, line
 
-def parse_requirements_iterable(reqs, source=None):
+def _parse_requirements_iterable(reqs, source=None):
     reqset = {}
 
-    for lineno, line in yield_lines(reqs):
-        process_line(line, reqset, source=source, lineno=lineno)
+    for lineno, line in _yield_lines(reqs):
+        _process_line(line, reqset, source=source, lineno=lineno)
 
     return reqset
 
@@ -122,22 +122,17 @@ def _parse_requirements_file(requirements):
         raise Exception("Could not locate requirements file %s", requirements)
 
     with open(requirements) as reqs:
-        return parse_requirements_iterable(reqs, source=requirements)
+        return _parse_requirements_iterable(reqs, source=requirements)
 
 def parse_requirements_file(requirements):
     reqs = _parse_requirements_file(requirements)
-    return { k:ireq_to_desc(v) for k,v in reqs.iteritems() }
+    return { k:_ireq_to_desc(v) for k,v in reqs.iteritems() }
 
 def _get_pip_freeze_output():
     process = Popen(["pip", "freeze", "."], stdout=PIPE)
     output, _ = process.communicate()
     reqs = output.splitlines()
     return reqs
-
-def parse_installed():
-    reqs = _get_pip_freeze_output()
-    required = parse_requirements_iterable(reqs)
-    return required
 
 def _versions_match(required, installed):
     if required is None:
@@ -147,13 +142,44 @@ def _versions_match(required, installed):
     contains = req.contains(installed[2:])
     return contains
 
+def _command_line_report(args):
+    ap = argparse.ArgumentParser(
+        description='Parse and manipulate pip dependencies'
+    )
+    ap.add_argument(
+        '--file',
+        type=str,
+        default='requirements.txt',
+        help='pip-requirements file',
+    )
+    ap.add_argument(
+        '-q',
+        '--quiet',
+        action='store_true',
+        help='No output, only return value'
+    )
+    args = ap.parse_args(args)
+    filename = os.path.abspath(args.file)
+    if not os.path.exists(filename):
+        print "Could not locate %s" % filename
+        return 1
+    diff = report(filename)
+    if not args.quiet:
+        print json.dumps(diff, indent=4)
+    return len(diff)
+
+def parse_installed():
+    reqs = _get_pip_freeze_output()
+    required = _parse_requirements_iterable(reqs)
+    return required
+
 def report(requirements):
     required = parse_requirements_file(requirements)
     for _, details in required.iteritems():
         details['source'] = None
 
     installed = parse_installed()
-    installed = { k:ireq_to_desc(v) for k,v in installed.iteritems() }
+    installed = { k:_ireq_to_desc(v) for k,v in installed.iteritems() }
 
     diff = defaultdict(lambda: defaultdict(dict))
 
@@ -182,34 +208,6 @@ def report(requirements):
                     diff[name]['specifiers']['required'] = details['specifiers']
 
     return diff
-
-def _command_line_report(args):
-    ap = argparse.ArgumentParser(
-        description='Parse and manipulate pip dependencies'
-    )
-    ap.add_argument(
-        '--file',
-        type=str,
-        default='requirements.txt',
-        help='pip-requirements file',
-    )
-    ap.add_argument(
-        '-q',
-        '--quiet',
-        action='store_true',
-        help='No output, only return value'
-    )
-    args = ap.parse_args(args)
-
-    filename = os.path.abspath(args.file)
-    if not os.path.exists(filename):
-        print "Could not locate %s" % filename
-        return 1
-
-    diff = report(filename)
-    if not args.quiet:
-        print json.dumps(diff, indent=4)
-    return len(diff)
 
 def main():
     ap = argparse.ArgumentParser(description='Parse and compare python dependencies')
