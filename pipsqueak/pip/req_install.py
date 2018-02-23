@@ -6,13 +6,20 @@ import pkg_resources
 import six
 
 from six.moves.urllib import parse as urllib_parse
+from six.moves.urllib import request as urllib_request
 
 from packaging import specifiers
 from packaging.markers import Marker
 from packaging.requirements import InvalidRequirement, Requirement
 
-from pipsqueak.pip.common import display_path, is_installable_dir
-from pipsqueak.pip.download import url_to_path, is_url, is_archive_file
+from pipsqueak.pip.util import (
+    display_path,
+    is_installable_dir,
+    url_to_path,
+    is_archive_file,
+    is_url,
+    path_to_url,
+)
 from pipsqueak.pip.link import Link
 from pipsqueak.pip.exceptions import InstallationError
 from pipsqueak.pip.vcs import vcs
@@ -22,14 +29,6 @@ from pipsqueak.pip.wheel import Wheel
 logger = logging.getLogger(__name__)
 operators = specifiers.Specifier._operators.keys()
 
-def path_to_url(path):
-    """
-    Convert a path to a file: URL.  The path will be made absolute and have
-    quoted path parts.
-    """
-    path = os.path.normpath(os.path.abspath(path))
-    url = urllib_parse.urljoin('file:', urllib_request.pathname2url(path))
-    return url
 
 def _strip_extras(path):
     m = re.match(r'^(.+)(\[[^\]]+\])$', path)
@@ -86,14 +85,6 @@ class InstallRequirement(object):
         # This holds the pkg_resources.Distribution object if this requirement
         # is already available:
         self.satisfied_by = None
-        # This hold the pkg_resources.Distribution object if this requirement
-        # conflicts with another installed distribution:
-        self.conflicts_with = None
-        # Temporary build location
-        self._temp_build_dir = None
-        # Used to store the global directory where the _temp_build_dir should
-        # have been created. Cf _correct_build_location method.
-        self._ideal_build_dir = None
         # True if the editable should be updated:
         self.update = update
         # Set to True after successful installation
@@ -169,6 +160,7 @@ class InstallRequirement(object):
                 markers = Marker(markers)
         else:
             markers = None
+
         name = name.strip()
         req = None
         path = os.path.normpath(os.path.abspath(name))
@@ -266,26 +258,6 @@ class InstallRequirement(object):
         return '<%s object: %s editable=%r>' % (
             self.__class__.__name__, str(self), self.editable)
 
-    def populate_link(self, finder, upgrade, require_hashes):
-        """Ensure that if a link can be found for this, that it is found.
-
-        Note that self.link may still be None - if Upgrade is False and the
-        requirement is already installed.
-
-        If require_hashes is True, don't use the wheel cache, because cached
-        wheels, always built locally, have different hashes than the files
-        downloaded from the index server and thus throw false hash mismatches.
-        Furthermore, cached wheels at present have undeterministic contents due
-        to file modification times.
-        """
-        if self.link is None:
-            self.link = finder.find_requirement(self, upgrade)
-        if self._wheel_cache is not None and not require_hashes:
-            old_link = self.link
-            self.link = self._wheel_cache.get(self.link, self.name)
-            if old_link != self.link:
-                logger.debug('Using cached wheel link: %s', self.link)
-
     @property
     def specifier(self):
         return self.req.specifier
@@ -350,27 +322,6 @@ class InstallRequirement(object):
 
         """
         return bool(self.options.get('hashes', {}))
-
-    def hashes(self, trust_internet=True):
-        """Return a hash-comparer that considers my option- and URL-based
-        hashes to be known-good.
-
-        Hashes in URLs--ones embedded in the requirements file, not ones
-        downloaded from an index server--are almost peers with ones from
-        flags. They satisfy --require-hashes (whether it was implicitly or
-        explicitly activated) but do not activate it. md5 and sha224 are not
-        allowed in flags, which should nudge people toward good algos. We
-        always OR all hashes together, even ones from URLs.
-
-        :param trust_internet: Whether to trust URL-based (#md5=...) hashes
-            downloaded from the internet, as by populate_link()
-
-        """
-        good_hashes = self.options.get('hashes', {}).copy()
-        link = self.link if trust_internet else self.original_link
-        if link and link.hash:
-            good_hashes.setdefault(link.hash_name, []).append(link.hash)
-        return Hashes(good_hashes)
 
 def _strip_postfix(req):
     """ Strip req postfix ( -dev, 0.2, etc ) """

@@ -1,11 +1,49 @@
 from __future__ import absolute_import
 
 import os
+import posixpath
+import sys
 
 from six.moves.urllib import parse as urllib_parse
 from six.moves.urllib import request as urllib_request
 from six.moves.urllib.parse import unquote as urllib_unquote
 
+
+BZ2_EXTENSIONS = ('.tar.bz2', '.tbz')
+XZ_EXTENSIONS = ('.tar.xz', '.txz', '.tlz', '.tar.lz', '.tar.lzma')
+ZIP_EXTENSIONS = ('.zip', '.whl')
+TAR_EXTENSIONS = ('.tar.gz', '.tgz', '.tar')
+ARCHIVE_EXTENSIONS = (
+    ZIP_EXTENSIONS + BZ2_EXTENSIONS + TAR_EXTENSIONS + XZ_EXTENSIONS
+)
+
+def display_path(path):
+    """Gives the display value for a given path, making it relative to cwd
+    if possible."""
+    path = os.path.normcase(os.path.abspath(path))
+    if sys.version_info[0] == 2:
+        path = path.decode(sys.getfilesystemencoding(), 'replace')
+        path = path.encode(sys.getdefaultencoding(), 'replace')
+    if path.startswith(os.getcwd() + os.path.sep):
+        path = '.' + path[len(os.getcwd()):]
+    return path
+
+def is_installable_dir(path):
+    """Return True if `path` is a directory containing a setup.py file."""
+    if not os.path.isdir(path):
+        return False
+    setup_py = os.path.join(path, 'setup.py')
+    if os.path.isfile(setup_py):
+        return True
+    return False
+
+def splitext(path):
+    """Like os.path.splitext, but take off .tar too"""
+    base, ext = posixpath.splitext(path)
+    if base.lower().endswith('.tar'):
+        ext = base[-4:] + ext
+        base = base[:-4]
+    return base, ext
 
 def is_url(name):
     """Returns true if the name looks like a URL"""
@@ -14,7 +52,6 @@ def is_url(name):
     from pipsqueak.pip.vcs import vcs
     scheme = name.split(':', 1)[0].lower()
     return scheme in ['http', 'https', 'file', 'ftp'] + vcs.all_schemes
-
 
 def url_to_path(url):
     """
@@ -32,7 +69,6 @@ def url_to_path(url):
     path = urllib_request.url2pathname(netloc + path)
     return path
 
-
 def path_to_url(path):
     """
     Convert a path to a file: URL.  The path will be made absolute and have
@@ -44,7 +80,6 @@ def path_to_url(path):
 
 def is_archive_file(name):
     """Return True if `name` is a considered as an archive file."""
-    from pipsqueak.pip.common import splitext, ARCHIVE_EXTENSIONS
     ext = splitext(name)[1].lower()
     if ext in ARCHIVE_EXTENSIONS:
         return True
@@ -61,19 +96,3 @@ def get_used_vcs_backend(link):
         if link.scheme in backend.schemes:
             vcs_backend = backend(link.url)
             return vcs_backend
-
-def is_vcs_url(link):
-    return bool(get_used_vcs_backend(link))
-
-def is_file_url(link):
-    return link.url.lower().startswith('file:')
-
-def is_dir_url(link):
-    """Return whether a file:// Link points to a directory.
-
-    ``link`` must not have any other scheme but file://. Call is_file_url()
-    first.
-
-    """
-    link_path = url_to_path(link.url_without_fragment)
-    return os.path.isdir(link_path)

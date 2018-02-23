@@ -2,8 +2,6 @@
 import logging
 import os
 from six.moves.urllib import parse as urllib_parse
-from pipsqueak.pip.exceptions import InstallationError
-
 from pipsqueak.pip.exceptions import BadCommand
 
 
@@ -200,13 +198,6 @@ class VersionControl(object):
         # For example, Django has branches of the form "stable/1.7.x".
         return surname.replace('/', '_')
 
-    def export(self, location):
-        """
-        Export the repository at the url to the destination location
-        i.e. only download the files, without vcs informations
-        """
-        raise NotImplementedError
-
     def get_url_rev(self):
         """
         Returns the correct repository URL and revision by parsing the given
@@ -246,22 +237,6 @@ class VersionControl(object):
         Compare two repo URLs for identity, ignoring incidental differences.
         """
         return (self.normalize_url(url1) == self.normalize_url(url2))
-
-    def obtain(self, dest):
-        """
-        Called when installing or updating an editable package, takes the
-        source path of the checkout.
-        """
-        raise NotImplementedError
-
-    def switch(self, dest, url, rev_options):
-        """
-        Switch the repo at ``dest`` to point to ``URL``.
-
-        Args:
-          rev_options: a RevOptions object.
-        """
-        raise NotImplementedError
 
     def is_commit_id_equal(self, dest, name):
         """
@@ -333,3 +308,4 @@ import pipsqueak.pip.vcs.git
 import pipsqueak.pip.vcs.bazaar
 import pipsqueak.pip.vcs.mercurial
 import pipsqueak.pip.vcs.git
+import pipsqueak.pip.vcs.subversion

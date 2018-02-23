@@ -4,7 +4,7 @@ import logging
 
 from six.moves.urllib import parse as urllib_parse
 
-from pipsqueak.pip.download import path_to_url
+from pipsqueak.pip.util import path_to_url
 from pipsqueak.pip.vcs import VersionControl, vcs
 
 logger = logging.getLogger(__name__)

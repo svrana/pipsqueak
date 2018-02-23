@@ -1,14 +1,7 @@
 from __future__ import absolute_import
 
-import logging
-import os
-
-from six.moves import configparser
-
-from pipsqueak.pip.download import path_to_url
+from pipsqueak.pip.util import path_to_url
 from pipsqueak.pip.vcs import VersionControl, vcs
-
-logger = logging.getLogger(__name__)
 
 
 class Mercurial(VersionControl):

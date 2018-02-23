@@ -2,7 +2,7 @@ import posixpath
 from urlparse import urlsplit, unquote, urlunsplit
 import re
 
-from pipsqueak.pip.common import path_to_url, splitext
+from pipsqueak.pip.util import path_to_url, splitext
 
 
 class Link(object):

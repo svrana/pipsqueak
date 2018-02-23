@@ -8,7 +8,7 @@ from subprocess import Popen, PIPE
 from packaging.requirements import Specifier
 
 from pipsqueak.options import break_args_options, build_parser
-from pipsqueak.pip.download import get_used_vcs_backend
+from pipsqueak.pip.util import get_used_vcs_backend
 from pipsqueak.pip.req_install import InstallRequirement
 
 
@@ -75,7 +75,6 @@ def _parse_requirement(req):
     return desc
 
 def _add_ireq(reqset, ireq):
-    # todo: catch duplicates
     reqset[ireq.name] = ireq
 
 def _process_line(line, reqset, source=None, lineno=None):
