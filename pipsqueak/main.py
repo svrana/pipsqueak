@@ -98,15 +98,6 @@ def parse_requirements(reqs, source=None):
 
     return reqset
 
-def _set_source(reqs, source):
-    for _, details in reqs.iteritems():
-        # ones that are loaded from a sub req will have their source specified
-        # already
-        if details['source'] is None:
-            details['source'] = source
-
-    return reqs
-
 def _parse_requirements_file(requirements):
     requirements = os.path.abspath(requirements)
     if not os.path.exists(requirements):
@@ -122,7 +113,6 @@ def parse_requirements_file(requirements):
 def _get_pip_freeze_output():
     process = Popen(["pip", "freeze", "."], stdout=PIPE)
     output, _ = process.communicate()
-    #reqs = [line for line in output.split('\n') if line]
     reqs = output.splitlines()
     return reqs
 
@@ -175,7 +165,7 @@ def report(requirements):
 
     return diff
 
-def command_line_report(args):
+def _command_line_report(args):
     ap = argparse.ArgumentParser(
         description='Parse and manipulate pip dependencies'
     )
@@ -209,7 +199,7 @@ def main():
     ap.add_argument('args', nargs=argparse.REMAINDER)
     args = ap.parse_args()
 
-    return command_line_report(args.args)
+    return _command_line_report(args.args)
 
 if __name__ == '__main__':
     main()
