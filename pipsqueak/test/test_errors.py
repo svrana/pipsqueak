@@ -1,7 +1,7 @@
 import unittest
 from pipsqueak.test.util import req_file
 
-from pipsqueak.exceptions import RequirementParseError, CommandError
+from pipsqueak.exceptions import RequirementParseError
 from pipsqueak.main import (
     parse_requirements_file,
 )

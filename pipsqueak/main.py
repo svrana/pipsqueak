@@ -17,7 +17,7 @@ def _new_descriptor():
         editable=False,
         project_name=None,
         location=None,
-        version=[],
+        version=None,
         type=None,
         source=None,
         line_number=None,
