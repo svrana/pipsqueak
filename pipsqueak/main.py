@@ -62,42 +62,46 @@ def ireq_to_desc(ireq):
     return desc
 
 def _parse_requirement(req):
-    ireq = process_line(req)
-    desc = ireq_to_desc(ireq)
+    reqset = {}
+    process_line(req, reqset)
+    desc = ireq_to_desc(reqset[reqset.keys()[0]])
     return desc
 
-def process_line(line, source=None):
+def _add_ireq(reqset, ireq):
+    # todo: catch duplicates
+    reqset[ireq.name] = ireq
+
+def process_line(line, reqset, source=None):
     parser = build_parser(line)
     defaults = parser.get_default_values()
     args_str, options_str = break_args_options(line)
     opts, _ = parser.parse_args(shlex.split(options_str), defaults)
 
     if args_str:
-        return InstallRequirement.from_line(args_str, comes_from=source)
+        ireq = InstallRequirement.from_line(args_str, comes_from=source)
+        _add_ireq(reqset, ireq)
     elif opts.editables:
-        return InstallRequirement.from_editable(opts.editables[0],
+        ireq = InstallRequirement.from_editable(opts.editables[0],
                                                 comes_from=source)
+        _add_ireq(reqset, ireq)
     elif opts.requirements:
-        return _parse_requirements_file(opts.requirements[0])
-    raise Exception("Failed to process requirement", line)
+        for ireq in _parse_requirements_file(opts.requirements[0]).itervalues():
+            _add_ireq(reqset, ireq)
+    else:
+        raise Exception("Failed to process requirement", line)
 
 def parse_requirements(reqs, source=None):
-    required = {}
+    reqset = {}
 
     for _, line in enumerate(reqs):
-        ireq = process_line(line, source)
-        if isinstance(ireq, InstallRequirement):
-            # check for dupes
-            required[ireq.name] = ireq
-        else:
-            required.update(ireq)
+        process_line(line, reqset, source=source)
 
-    return required
+    return reqset
 
 def _set_source(reqs, source):
     for _, details in reqs.iteritems():
-        # ones that are loaded from a sub req will have their
-        # source specified already
+        # ones that are loaded from a sub req will have their source specified
+        # already
         if details['source'] is None:
             details['source'] = source
 
@@ -118,7 +122,8 @@ def parse_requirements_file(requirements):
 def _get_pip_freeze_output():
     process = Popen(["pip", "freeze", "."], stdout=PIPE)
     output, _ = process.communicate()
-    reqs = [line for line in output.split('\n') if line]
+    #reqs = [line for line in output.split('\n') if line]
+    reqs = output.splitlines()
     return reqs
 
 def parse_installed():
