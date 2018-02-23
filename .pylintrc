@@ -17,7 +17,7 @@
 
 # Add <file or directory> to the black list. It should be a base name, not a
 # path. You may set this option multiple times.
-ignore=StenographRequest.py,StenographUpdateRequest.py,ttypes.py
+#ignore=
 
 # Pickle collected data for later comparisons.
 persistent=no
@@ -89,7 +89,7 @@ evaluation=10.0 - ((float(5 * error + warning + refactor + convention) / stateme
 [VARIABLES]
 
 # Tells whether we should check for unused import in __init__ files.
-init-import=yes
+init-import=no
 
 # A regular expression matching names used for dummy variables (i.e. not used).
 dummy-variables-rgx=_|dummy
@@ -163,9 +163,9 @@ ignore-mixin-members=yes
 
 # List of classes names for which member attributes should not be checked
 # (useful for classes with attributes dynamically set).
-ignored-classes=SQLObject
+#ignored-classes=
 
-ignored-modules=sweeper.grpc_proxy.clients
+#ignored-modules=
 # List of members which are set dynamically and missed by pylint inference
 # system, and so shouldn't trigger E0201 when accessed.
 generated-members=REQUEST,acl_users,aq_parent,objects,id,set_multi,get_multi,get,set
