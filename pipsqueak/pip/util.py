@@ -3,10 +3,16 @@ from __future__ import absolute_import
 import os
 import posixpath
 import sys
+import subprocess
+import logging
 
 from six.moves.urllib import parse as urllib_parse
 from six.moves.urllib import request as urllib_request
 from six.moves.urllib.parse import unquote as urllib_unquote
+
+from pipsqueak.pip.compat import console_to_str
+
+logger = logging.getLogger(__file__)
 
 
 BZ2_EXTENSIONS = ('.tar.bz2', '.tbz')
@@ -96,3 +102,97 @@ def get_used_vcs_backend(link):
         if link.scheme in backend.schemes:
             vcs_backend = backend(link.url)
             return vcs_backend
+
+def call_subprocess(cmd, cwd=None,
+                    on_returncode='raise',
+                    command_desc=None,
+                    extra_environ=None, unset_environ=None, spinner=None):
+    """
+    Args:
+      unset_environ: an iterable of environment variable names to unset
+        prior to calling subprocess.Popen().
+    """
+    if unset_environ is None:
+        unset_environ = []
+    # This function's handling of subprocess output is confusing and I
+    # previously broke it terribly, so as penance I will write a long comment
+    # explaining things.
+    #
+    # The obvious thing that affects output is the show_stdout=
+    # kwarg. show_stdout=True means, let the subprocess write directly to our
+    # stdout. Even though it is nominally the default, it is almost never used
+    # inside pip (and should not be used in new code without a very good
+    # reason); as of 2016-02-22 it is only used in a few places inside the VCS
+    # wrapper code. Ideally we should get rid of it entirely, because it
+    # creates a lot of complexity here for a rarely used feature.
+    #
+    # Most places in pip set show_stdout=False. What this means is:
+    # - We connect the child stdout to a pipe, which we read.
+    # - By default, we hide the output but show a spinner -- unless the
+    #   subprocess exits with an error, in which case we show the output.
+    # - If the --verbose option was passed (= loglevel is DEBUG), then we show
+    #   the output unconditionally. (But in this case we don't want to show
+    #   the output a second time if it turns out that there was an error.)
+    #
+    # stderr is always merged with stdout (even if show_stdout=True).
+    stdout = subprocess.PIPE
+    if command_desc is None:
+        cmd_parts = []
+        for part in cmd:
+            if ' ' in part or '\n' in part or '"' in part or "'" in part:
+                part = '"%s"' % part.replace('"', '\\"')
+            cmd_parts.append(part)
+        command_desc = ' '.join(cmd_parts)
+    logger.debug("Running command %s", command_desc)
+    env = os.environ.copy()
+    if extra_environ:
+        env.update(extra_environ)
+    for name in unset_environ:
+        env.pop(name, None)
+    try:
+        proc = subprocess.Popen(
+            cmd, stderr=subprocess.STDOUT, stdin=subprocess.PIPE,
+            stdout=stdout, cwd=cwd, env=env,
+        )
+        proc.stdin.close()
+    except Exception as exc:
+        logger.critical(
+            "Error %s while executing command %s", exc, command_desc,
+        )
+        raise
+    all_output = []
+    if stdout is not None:
+        while True:
+            line = console_to_str(proc.stdout.readline())
+            if not line:
+                break
+            line = line.rstrip()
+            all_output.append(line + '\n')
+            # Show the line immediately
+            logger.debug(line)
+    try:
+        proc.wait()
+    finally:
+        if proc.stdout:
+            proc.stdout.close()
+    if spinner is not None:
+        if proc.returncode:
+            spinner.finish("error")
+        else:
+            spinner.finish("done")
+    if proc.returncode:
+        if on_returncode == 'raise':
+            raise Exception(
+                'Command "%s" failed with error code %s in %s'
+                % (command_desc, proc.returncode, cwd))
+        elif on_returncode == 'warn':
+            logger.warning(
+                'Command "%s" had error code %s in %s',
+                command_desc, proc.returncode, cwd,
+            )
+        elif on_returncode == 'ignore':
+            pass
+        else:
+            raise ValueError('Invalid value: on_returncode=%s' %
+                             repr(on_returncode))
+    return ''.join(all_output)

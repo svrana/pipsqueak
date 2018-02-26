@@ -13,3 +13,6 @@ def samefile(file1, file2):
         path1 = os.path.normcase(os.path.abspath(file1))
         path2 = os.path.normcase(os.path.abspath(file2))
         return path1 == path2
+
+def console_to_str(readline):
+    return readline

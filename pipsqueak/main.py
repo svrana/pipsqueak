@@ -10,6 +10,8 @@ from packaging.specifiers import (
     InvalidSpecifier,
     LegacySpecifier,
 )
+from packaging.utils import canonicalize_name
+import pkg_resources
 
 from pipsqueak.options import break_args_options, build_parser
 from pipsqueak.pip.vcs import vcs
@@ -35,7 +37,8 @@ def _grab_version(req):
     if link:
         vc = get_used_vcs_backend(link)
         if vc:
-            return vc.get_url_rev()[1]
+            version = vc.get_url_rev()[1]
+            return version
     return None
 
 def _grab_type(req):
@@ -134,11 +137,11 @@ def parse_requirements_file(requirements):
     reqs = _parse_requirements_file(requirements)
     return { k:_ireq_to_desc(v) for k,v in reqs.iteritems() }
 
-def _get_pip_freeze_output():
-    process = Popen(["pip", "freeze", "."], stdout=PIPE)
-    output, _ = process.communicate()
-    reqs = output.splitlines()
-    return reqs
+def _get_installed_packages():
+    installed = {}
+    for p in pkg_resources.working_set:
+        installed[canonicalize_name(p.project_name)] = p
+    return installed
 
 def _versions_match(required, installed):
     if required is None:
@@ -179,16 +182,25 @@ def _command_line_report(args):
     return len(diff)
 
 def parse_installed():
-    reqs = _get_pip_freeze_output()
+    installed = _get_installed_packages()
+    reqs = ['%s==%s' % (name, dist.version)
+            for name, dist in installed.iteritems()]
     required = _parse_requirements_iterable(reqs)
-    return required
+    return required, installed
+
+# def _compare_versions(installed_desc, dist, required_desc, diff):
+#     if required_desc['version']:
+#     vc = vcs.get_backend_from_location(dist.location)
+#     if vc:
+    #if required_desc['type'] != 'pypi':
+        # all installed deps will appear to come from pypy, so
 
 def report(requirements):
     required = parse_requirements_file(requirements)
     for _, details in required.iteritems():
         details['source'] = None
 
-    installed = parse_installed()
+    installed, unused = parse_installed()
     installed = { k:_ireq_to_desc(v) for k,v in installed.iteritems() }
 
     diff = defaultdict(lambda: defaultdict(dict))
@@ -206,13 +218,17 @@ def report(requirements):
             if installed[name]['type'] != details['type']:
                 diff[name]['type']['installed'] = installed[name]['type']
                 diff[name]['type']['required'] = details['type']
-            if installed[name]['location'] != details['location']:
-                diff[name]['location']['installed'] = installed[name]['location']
-                diff[name]['location']['required'] = details['location']
-            if details['version'] != None:
-                if installed[name]['version'] != details['version']:
-                    diff[name]['version']['installed'] = installed[name]['version']
-                    diff[name]['version']['required'] = details['version']
+
+            compare_versions(installed[name], unused[name], details, diff)
+
+            # if installed[name]['location'] != details['location']:
+            #     diff[name]['location']['installed'] = installed[name]['location']
+            #     diff[name]['location']['required'] = details['location']
+            # if details['version'] != None:
+            #     if installed[name]['version'] != details['version']:
+            #         diff[name]['version']['installed'] = installed[name]['version']
+            #         diff[name]['version']['required'] = details['version']
+
             if installed[name]['specifiers'] != details['specifiers']:
                 if not _versions_match(details['specifiers'], installed[name]['specifiers']):
                     diff[name]['specifiers']['installed'] = installed[name]['specifiers']

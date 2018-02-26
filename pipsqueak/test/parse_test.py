@@ -25,7 +25,7 @@ class TestParse(unittest.TestCase):
             type="git+git",
             project_name="wheezy.captcha",
             editable=True,
-            location="git://github.com/ContextLogic/wheezy-captcha.git",
+            version_control="git://github.com/ContextLogic/wheezy-captcha.git",
         ))
 
     def test_cannonical_1(self):
@@ -42,7 +42,7 @@ class TestParse(unittest.TestCase):
             type="git+git",
             project_name="pipsqueak",
             version="7f9405aaf3935aa4569a803",
-            location="git://github.com/svrana/pipsqueak.git",
+            version_control="git://github.com/svrana/pipsqueak.git",
             specifiers="==0.1.0",
         ))
 

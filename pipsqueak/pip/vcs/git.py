@@ -63,7 +63,7 @@ class Git(VersionControl):
 
     def get_git_version(self):
         VERSION_PFX = 'git version '
-        version = self.run_command(['version'], show_stdout=False)
+        version = self.run_command(['version'])
         if version.startswith(VERSION_PFX):
             version = version[len(VERSION_PFX):].split()[0]
         else:
@@ -85,7 +85,7 @@ class Git(VersionControl):
         """
         # Pass rev to pre-filter the list.
         output = self.run_command(['show-ref', rev], cwd=dest,
-                                  show_stdout=False, on_returncode='ignore')
+                                  on_returncode='ignore')
         refs = {}
         for line in output.strip().splitlines():
             try:
@@ -144,7 +144,7 @@ class Git(VersionControl):
         """Return URL of the first remote encountered."""
         remotes = self.run_command(
             ['config', '--get-regexp', r'remote\..*\.url'],
-            show_stdout=False, cwd=location,
+            cwd=location
         )
         remotes = remotes.splitlines()
         found_remote = remotes[0]
@@ -157,7 +157,7 @@ class Git(VersionControl):
 
     def get_revision(self, location):
         current_rev = self.run_command(
-            ['rev-parse', 'HEAD'], show_stdout=False, cwd=location,
+            ['rev-parse', 'HEAD'], cwd=location,
         )
         return current_rev.strip()
 
@@ -165,7 +165,7 @@ class Git(VersionControl):
         """Return the relative path of setup.py to the git repo root."""
         # find the repo root
         git_dir = self.run_command(['rev-parse', '--git-dir'],
-                                   show_stdout=False, cwd=location).strip()
+                                   cwd=location).strip()
         if not os.path.isabs(git_dir):
             git_dir = os.path.join(location, git_dir)
         root_dir = os.path.join(git_dir, '..')
@@ -226,7 +226,6 @@ class Git(VersionControl):
         try:
             r = cls().run_command(['rev-parse'],
                                   cwd=location,
-                                  show_stdout=False,
                                   on_returncode='ignore')
             return not r
         except Exception:

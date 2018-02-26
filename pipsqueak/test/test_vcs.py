@@ -14,7 +14,7 @@ class TestVcs(unittest.TestCase):
         self.assertEqual(self.desc, default_desc(
             type="svn+http",
             project_name="MyApp",
-            location="http://myrepo/svn/MyApp",
+            version_control="http://myrepo/svn/MyApp",
         ))
 
     def test_can_parse_mercurial(self):
@@ -22,7 +22,7 @@ class TestVcs(unittest.TestCase):
         self.assertEqual(self.desc, default_desc(
             type="hg+https",
             project_name="MyApp",
-            location="https://myrepo/hg/MyApp",
+            version_control="https://myrepo/hg/MyApp",
         ))
 
     def test_git_branch(self):
@@ -31,6 +31,5 @@ class TestVcs(unittest.TestCase):
             type="git+git",
             project_name="tornado",
             version="branch4.5.1",
-            #location="git://github.com/tornadoweb/tornado.git@branch4.5.1",
-            location="git://github.com/tornadoweb/tornado.git",
+            version_control="git://github.com/tornadoweb/tornado.git",
         ))

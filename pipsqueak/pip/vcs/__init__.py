@@ -1,8 +1,12 @@
 """Handles all VCS (version control) support"""
+import errno
 import logging
 import os
 
 from six.moves.urllib import parse as urllib_parse
+
+from pipsqueak.exceptions import BadCommand
+from pipsqueak.pip.util import call_subprocess
 
 
 __all__ = ['vcs', 'get_src_requirement']
@@ -20,7 +24,7 @@ class RevOptions(object):
     Instances of this class should be treated as if immutable.
     """
 
-    def __init__(self, vcs, rev=None, extra_args=None):
+    def __init__(self, _vcs, rev=None, extra_args=None):
         """
         Args:
           vcs: a VersionControl object.
@@ -32,7 +36,7 @@ class RevOptions(object):
 
         self.extra_args = extra_args
         self.rev = rev
-        self.vcs = vcs
+        self.vcs = _vcs
 
     def __repr__(self):
         return '<RevOptions {}: rev={!r}>'.format(self.vcs.name, self.rev)
@@ -210,7 +214,7 @@ class VersionControl(object):
         )
         assert '+' in self.url, error_message % self.url
         url = self.url.split('+', 1)[1]
-        scheme, netloc, path, query, frag = urllib_parse.urlsplit(url)
+        scheme, netloc, path, query, _ = urllib_parse.urlsplit(url)
         rev = None
         if '@' in path:
             path, rev = path.rsplit('@', 1)
@@ -236,7 +240,7 @@ class VersionControl(object):
         """
         Compare two repo URLs for identity, ignoring incidental differences.
         """
-        return (self.normalize_url(url1) == self.normalize_url(url2))
+        return self.normalize_url(url1) == self.normalize_url(url2)
 
     def is_commit_id_equal(self, dest, name):
         """
@@ -282,6 +286,32 @@ class VersionControl(object):
         path = os.path.join(location, cls.dirname)
         return os.path.exists(path)
 
+    def run_command(self, cmd, cwd=None,
+                    on_returncode='raise',
+                    command_desc=None,
+                    extra_environ=None, spinner=None):
+        """
+        Run a VCS subcommand
+        This is simply a wrapper around call_subprocess that adds the VCS
+        command name, and checks that the VCS is available
+        """
+        cmd = [self.name] + cmd
+        try:
+            return call_subprocess(cmd, cwd,
+                                   on_returncode,
+                                   command_desc, extra_environ,
+                                   unset_environ=self.unset_environ,
+                                   spinner=spinner)
+        except OSError as e:
+            # errno.ENOENT = no such file or directory
+            # In other words, the VCS executable isn't available
+            if e.errno == errno.ENOENT:
+                raise BadCommand(
+                    'Cannot find command %r - do you have '
+                    '%r installed and in your '
+                    'PATH?' % (self.name, self.name))
+            else:
+                raise  # re-raise exception if a different error occurred
 
 def get_src_requirement(dist, location):
     version_control = vcs.get_backend_from_location(location)
