@@ -10,7 +10,7 @@ from six.moves.urllib import parse as urllib_parse
 from six.moves.urllib import request as urllib_request
 from six.moves.urllib.parse import unquote as urllib_unquote
 
-from pipsqueak.pip.compat import console_to_str
+from pipsqueak.pip.compat import console_to_str, stdlib_pkgs, expanduser
 
 logger = logging.getLogger(__file__)
 
@@ -196,3 +196,23 @@ def call_subprocess(cmd, cwd=None,
             raise ValueError('Invalid value: on_returncode=%s' %
                              repr(on_returncode))
     return ''.join(all_output)
+
+def normalize_path(path, resolve_symlinks=True):
+    """
+    Convert a path to its canonical, case-normalized, absolute version.
+
+    """
+    path = expanduser(path)
+    if resolve_symlinks:
+        path = os.path.realpath(path)
+    else:
+        path = os.path.abspath(path)
+    return os.path.normcase(path)
+
+def dist_is_editable(dist):
+    """ Is distribution an editable install? """
+    for path_item in sys.path:
+        egg_link = os.path.join(path_item, dist.project_name + '.egg-link')
+        if os.path.isfile(egg_link):
+            return True
+    return False

@@ -1,5 +1,6 @@
 import argparse
 from collections import defaultdict
+import logging
 import json
 import os.path
 import shlex
@@ -14,10 +15,13 @@ from packaging.utils import canonicalize_name
 import pkg_resources
 
 from pipsqueak.options import break_args_options, build_parser
+from pipsqueak.pip.freeze import FrozenRequirement
 from pipsqueak.pip.vcs import vcs
 from pipsqueak.pip.util import get_used_vcs_backend
 from pipsqueak.pip.req_install import InstallRequirement
 
+
+logger = logging.getLogger(__file__)
 
 def _new_descriptor():
     desc = dict(
@@ -138,10 +142,20 @@ def parse_requirements_file(requirements):
     return { k:_ireq_to_desc(v) for k,v in reqs.iteritems() }
 
 def _get_installed_packages():
-    installed = {}
-    for p in pkg_resources.working_set:
-        installed[canonicalize_name(p.project_name)] = p
-    return installed
+    installations = {}
+
+    for dist in pkg_resources.working_set:
+        try:
+            req = FrozenRequirement.from_dist(dist, [])
+        except Exception:
+            logger.warning(
+                "Could not parse requirement: %s",
+                dist.project_name
+            )
+            continue
+        installations[req.name] = req
+
+    return installations
 
 def _versions_match(required, installed):
     if required is None:
@@ -183,17 +197,9 @@ def _command_line_report(args):
 
 def parse_installed():
     installed = _get_installed_packages()
-    reqs = ['%s==%s' % (name, dist.version)
-            for name, dist in installed.iteritems()]
+    reqs = [ str(dist.req) for dist in installed.itervalues() ]
     required = _parse_requirements_iterable(reqs)
     return required, installed
-
-# def _compare_versions(installed_desc, dist, required_desc, diff):
-#     if required_desc['version']:
-#     vc = vcs.get_backend_from_location(dist.location)
-#     if vc:
-    #if required_desc['type'] != 'pypi':
-        # all installed deps will appear to come from pypy, so
 
 def report(requirements):
     required = parse_requirements_file(requirements)
@@ -219,15 +225,15 @@ def report(requirements):
                 diff[name]['type']['installed'] = installed[name]['type']
                 diff[name]['type']['required'] = details['type']
 
-            compare_versions(installed[name], unused[name], details, diff)
+            #compare_versions(installed[name], unused[name], details, diff)
 
-            # if installed[name]['location'] != details['location']:
-            #     diff[name]['location']['installed'] = installed[name]['location']
-            #     diff[name]['location']['required'] = details['location']
-            # if details['version'] != None:
-            #     if installed[name]['version'] != details['version']:
-            #         diff[name]['version']['installed'] = installed[name]['version']
-            #         diff[name]['version']['required'] = details['version']
+            if installed[name]['location'] != details['location']:
+                diff[name]['location']['installed'] = installed[name]['location']
+                diff[name]['location']['required'] = details['location']
+            if details['version'] != None:
+                if installed[name]['version'] != details['version']:
+                    diff[name]['version']['installed'] = installed[name]['version']
+                    diff[name]['version']['required'] = details['version']
 
             if installed[name]['specifiers'] != details['specifiers']:
                 if not _versions_match(details['specifiers'], installed[name]['specifiers']):

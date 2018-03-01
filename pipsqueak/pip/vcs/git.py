@@ -214,6 +214,10 @@ class Git(VersionControl):
             self.url = self.url.replace('git+', 'git+ssh://')
             url, rev = super(Git, self).get_url_rev()
             url = url.replace('ssh://', '')
+        elif not self.url.startswith('git+'):
+            self.url = 'git+' + self.url
+            url, rev = super(Git, self).get_url_rev()
+            url = url.replace('git+', '')
         else:
             url, rev = super(Git, self).get_url_rev()
 
