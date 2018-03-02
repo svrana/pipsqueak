@@ -85,6 +85,8 @@ class FrozenRequirement(object):
                         rev,
                         cls.egg_name(dist)
                     )
+
+        logger.info("found: %s", dist.project_name)
         return cls(dist.project_name, req, editable, comments)
 
     @staticmethod
