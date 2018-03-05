@@ -8,11 +8,12 @@ from pipsqueak.pip.util import dist_is_editable
 logger = logging.getLogger(__file__)
 
 class FrozenRequirement(object):
-    def __init__(self, name, req, editable, comments=()):
+    def __init__(self, name, req, editable, location, comments=()):
         self.name = name
         self.req = req
         self.editable = editable
         self.comments = comments
+        self.location = location
 
     _rev_re = re.compile(r'-r(\d+)$')
     _date_re = re.compile(r'-(20\d\d\d\d\d\d)$')
@@ -87,7 +88,7 @@ class FrozenRequirement(object):
                     )
 
         logger.info("found: %s", dist.project_name)
-        return cls(dist.project_name, req, editable, comments)
+        return cls(dist.project_name, req, editable, location, comments)
 
     @staticmethod
     def egg_name(dist):
