@@ -10,7 +10,7 @@ from six.moves.urllib import parse as urllib_parse
 from six.moves.urllib import request as urllib_request
 from six.moves.urllib.parse import unquote as urllib_unquote
 
-from pipsqueak.pip.compat import console_to_str, stdlib_pkgs, expanduser
+from pipsqueak.pip.compat import console_to_str, expanduser
 
 logger = logging.getLogger(__file__)
 
@@ -91,10 +91,6 @@ def is_archive_file(name):
         return True
     return False
 
-def unpack_vcs_link(link, location):
-    vcs_backend = get_used_vcs_backend(link)
-    vcs_backend.unpack(location)
-
 def get_used_vcs_backend(link):
     from pipsqueak.pip.vcs import vcs
 
@@ -114,19 +110,6 @@ def call_subprocess(cmd, cwd=None,
     """
     if unset_environ is None:
         unset_environ = []
-    # This function's handling of subprocess output is confusing and I
-    # previously broke it terribly, so as penance I will write a long comment
-    # explaining things.
-    #
-    # The obvious thing that affects output is the show_stdout=
-    # kwarg. show_stdout=True means, let the subprocess write directly to our
-    # stdout. Even though it is nominally the default, it is almost never used
-    # inside pip (and should not be used in new code without a very good
-    # reason); as of 2016-02-22 it is only used in a few places inside the VCS
-    # wrapper code. Ideally we should get rid of it entirely, because it
-    # creates a lot of complexity here for a rarely used feature.
-    #
-    # Most places in pip set show_stdout=False. What this means is:
     # - We connect the child stdout to a pipe, which we read.
     # - By default, we hide the output but show a spinner -- unless the
     #   subprocess exits with an error, in which case we show the output.
@@ -134,7 +117,7 @@ def call_subprocess(cmd, cwd=None,
     #   the output unconditionally. (But in this case we don't want to show
     #   the output a second time if it turns out that there was an error.)
     #
-    # stderr is always merged with stdout (even if show_stdout=True).
+    # stderr is always merged with stdout
     stdout = subprocess.PIPE
     if command_desc is None:
         cmd_parts = []
@@ -216,3 +199,6 @@ def dist_is_editable(dist):
         if os.path.isfile(egg_link):
             return True
     return False
+
+def is_file_url(link):
+    return link.url.lower().startswith('file:')

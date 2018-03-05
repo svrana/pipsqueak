@@ -16,7 +16,7 @@ import pkg_resources
 from pipsqueak.options import break_args_options, build_parser
 from pipsqueak.pip.freeze import FrozenRequirement
 from pipsqueak.pip.vcs import vcs
-from pipsqueak.pip.util import get_used_vcs_backend
+from pipsqueak.pip.util import get_used_vcs_backend, is_file_url
 from pipsqueak.pip.req_install import InstallRequirement
 
 
@@ -36,38 +36,28 @@ def _new_descriptor():
 
 def _fill_type(req, desc):
     if req.link:
-        link = req.link
-        for backend_cls in vcs.backends:
-            if link.scheme in backend_cls.schemes:
-                location, version = backend_cls(str(link)).get_url_rev()
-                if '+' in link.scheme:
-                    protocol = link.scheme.split('+')[1]
-                else:
-                    protocol = link.scheme
+        vcs_backend = get_used_vcs_backend(req.link)
+        if vcs_backend:
+            location, version = vcs_backend.get_url_rev()
+            if '+' in req.link.scheme:
+                protocol = req.link.scheme.split('+')[1]
+            else:
+                protocol = req.link.scheme
 
-                desc['link'] = str(link)
-                desc['type'] = 'version_control'
-                desc['version_control'] = dict(
-                    type=backend_cls.name,
-                    protocol=protocol,
-                    location=location,
-                    version=version,
-                )
-                return
-
-        if "file://" in str(link):
+            desc['link'] = req.link.url
+            desc['type'] = 'version_control'
+            desc['version_control'] = dict(
+                type=vcs_backend.name,
+                protocol=protocol,
+                location=location,
+                version=version,
+            )
+            return
+        elif is_file_url(req.link.url):
             desc['type'] = 'file'
             return
-    else:
-        desc['type'] = 'pypi' # need a better descriptor for this
 
-def _grab_location(req):
-    link = req.link
-    if link:
-        vc = get_used_vcs_backend(link)
-        if vc:
-            return vc.get_url_rev()[0]
-    return None
+    desc['type'] = 'pypi' # need a better descriptor for this
 
 def _ireq_to_desc(ireq):
     desc = _new_descriptor()
@@ -167,7 +157,6 @@ def _get_installed_as_frozen_reqs():
                 dist.project_name
             )
             continue
-
         installations[name] = req
 
     return installations
