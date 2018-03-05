@@ -37,7 +37,6 @@ class Subversion(VersionControl):
             'Bad directory: %s' % location
         output = self.run_command(
             ['info', location],
-            show_stdout=False,
             extra_environ={'LANG': 'C'},
         )
         match = _svn_url_re.search(output)
@@ -152,10 +151,7 @@ class Subversion(VersionControl):
         else:
             try:
                 # subversion >= 1.7
-                xml = self.run_command(
-                    ['info', '--xml', location],
-                    show_stdout=False,
-                )
+                xml = self.run_command(['info', '--xml', location])
                 url = _svn_info_xml_url_re.search(xml).group(1)
                 revs = [
                     int(m.group(1)) for m in _svn_info_xml_rev_re.finditer(xml)

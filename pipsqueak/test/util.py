@@ -14,6 +14,11 @@ def req_file(filename, contents):
 
 def default_desc(**kwargs):
     desc = _new_descriptor()
-    desc['type'] = 'pypi'
+
+    if 'version_control' in kwargs:
+        desc['type'] = 'version_control'
+    else:
+        desc['type'] = 'pypi'
+
     desc.update(**kwargs)
     return desc

@@ -37,7 +37,7 @@ class Bazaar(VersionControl):
         return url, rev
 
     def get_url(self, location):
-        urls = self.run_command(['info'], show_stdout=False, cwd=location)
+        urls = self.run_command(['info'], cwd=location)
         for line in urls.splitlines():
             line = line.strip()
             for x in ('checkout of branch: ',
@@ -51,7 +51,7 @@ class Bazaar(VersionControl):
 
     def get_revision(self, location):
         revision = self.run_command(
-            ['revno'], show_stdout=False, cwd=location,
+            ['revno'], cwd=location,
         )
         return revision.splitlines()[-1]
 

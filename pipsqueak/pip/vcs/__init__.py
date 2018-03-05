@@ -1,8 +1,12 @@
 """Handles all VCS (version control) support"""
+import errno
 import logging
 import os
 
 from six.moves.urllib import parse as urllib_parse
+
+from pipsqueak.exceptions import BadCommand
+from pipsqueak.pip.util import call_subprocess, display_path
 
 
 __all__ = ['vcs', 'get_src_requirement']
@@ -20,7 +24,7 @@ class RevOptions(object):
     Instances of this class should be treated as if immutable.
     """
 
-    def __init__(self, vcs, rev=None, extra_args=None):
+    def __init__(self, _vcs, rev=None, extra_args=None):
         """
         Args:
           vcs: a VersionControl object.
@@ -32,7 +36,7 @@ class RevOptions(object):
 
         self.extra_args = extra_args
         self.rev = rev
-        self.vcs = vcs
+        self.vcs = _vcs
 
     def __repr__(self):
         return '<RevOptions {}: rev={!r}>'.format(self.vcs.name, self.rev)
@@ -93,7 +97,7 @@ class VcsSupport(object):
         return list(self._registry.values())
 
     def backend_instances(self):
-        return [ cls() for cls in self._registry.values() ]
+        return [cls() for cls in self._registry.values()]
 
     @property
     def dirnames(self):
@@ -210,7 +214,7 @@ class VersionControl(object):
         )
         assert '+' in self.url, error_message % self.url
         url = self.url.split('+', 1)[1]
-        scheme, netloc, path, query, frag = urllib_parse.urlsplit(url)
+        scheme, netloc, path, query, _ = urllib_parse.urlsplit(url)
         rev = None
         if '@' in path:
             path, rev = path.rsplit('@', 1)
@@ -236,7 +240,7 @@ class VersionControl(object):
         """
         Compare two repo URLs for identity, ignoring incidental differences.
         """
-        return (self.normalize_url(url1) == self.normalize_url(url2))
+        return self.normalize_url(url1) == self.normalize_url(url2)
 
     def is_commit_id_equal(self, dest, name):
         """
@@ -260,13 +264,20 @@ class VersionControl(object):
     def get_url(self, location):
         """
         Return the url used at location
-        Used in get_info or check_destination
+        Used in get_info or is_most_recent
         """
         raise NotImplementedError
 
     def get_revision(self, location):
         """
         Return the current commit id of the files at the given location.
+        """
+        raise NotImplementedError
+
+    def get_latest_revision(self, url, rev):
+        """
+        Return the latest commit id specified by revision name (branch or tag)
+        from the repo located at url.
         """
         raise NotImplementedError
 
@@ -281,6 +292,67 @@ class VersionControl(object):
                      location, cls.dirname, cls.name)
         path = os.path.join(location, cls.dirname)
         return os.path.exists(path)
+
+    def run_command(self, cmd, cwd=None,
+                    on_returncode='raise',
+                    command_desc=None,
+                    extra_environ=None, spinner=None):
+        """
+        Run a VCS subcommand
+        This is simply a wrapper around call_subprocess that adds the VCS
+        command name, and checks that the VCS is available
+        """
+        cmd = [self.name] + cmd
+        try:
+            return call_subprocess(cmd, cwd,
+                                   on_returncode,
+                                   command_desc, extra_environ,
+                                   unset_environ=self.unset_environ,
+                                   spinner=spinner)
+        except OSError as e:
+            # errno.ENOENT = no such file or directory
+            # In other words, the VCS executable isn't available
+            if e.errno == errno.ENOENT:
+                raise BadCommand(
+                    'Cannot find command %r - do you have '
+                    '%r installed and in your '
+                    'PATH?' % (self.name, self.name))
+            else:
+                raise  # re-raise exception if a different error occurred
+
+    def is_most_recent(self, dest, url, rev_options):
+        """
+        Return commit id ahead of the current location of dest if dest is
+        behind upstream according to its rev_options. If rev_options does not
+        contain a commit id, we must fetch the most recent commit ids from the
+        upstream repo. To avoid going to the network, always specify a commit
+        id instead of a branch. This has the benefit of producing reproducable
+        builds.
+
+        Modified from check_destination in pip.
+
+        Args:
+          rev_options: a RevOptions object.
+        """
+        existing_url = self.get_url(dest)
+        upstream_rev = 'unknown'
+
+        if self.compare_urls(existing_url, url):
+            logger.debug(
+                '%s in %s exists, and has correct URL (%s)',
+                self.repo_name.title(),
+                display_path(dest),
+                url,
+            )
+            if self.is_commit_id_equal(dest, rev_options.rev):
+                return True, ""
+
+            current_rev = self.get_revision(dest)
+            upstream_rev = self.get_latest_revision(url, rev_options.rev)
+            if current_rev == upstream_rev:
+                return True, ""
+
+        return False, upstream_rev
 
 
 def get_src_requirement(dist, location):
