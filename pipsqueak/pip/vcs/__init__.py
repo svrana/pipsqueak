@@ -6,7 +6,7 @@ import os
 from six.moves.urllib import parse as urllib_parse
 
 from pipsqueak.exceptions import BadCommand
-from pipsqueak.pip.util import call_subprocess
+from pipsqueak.pip.util import call_subprocess, display_path
 
 
 __all__ = ['vcs', 'get_src_requirement']
@@ -97,7 +97,7 @@ class VcsSupport(object):
         return list(self._registry.values())
 
     def backend_instances(self):
-        return [ cls() for cls in self._registry.values() ]
+        return [cls() for cls in self._registry.values()]
 
     @property
     def dirnames(self):
@@ -312,6 +312,32 @@ class VersionControl(object):
                     'PATH?' % (self.name, self.name))
             else:
                 raise  # re-raise exception if a different error occurred
+
+    def check_destination(self, dest, url, rev_options):
+        """
+        Return True if the location requires a checkout/clone to match url and
+        rev_options specified, False otherwise.
+
+        Args:
+          rev_options: a RevOptions object.
+        """
+        existing_url = self.get_url(dest)
+        if self.compare_urls(existing_url, url):
+            logger.debug(
+                '%s in %s exists, and has correct URL (%s)',
+                self.repo_name.title(),
+                display_path(dest),
+                url,
+            )
+            if not self.is_commit_id_equal(dest, rev_options.rev):
+                return False
+                # pull upstream refs
+                # check again
+                #import pdb ; pdb.set_trace()
+
+
+        return False
+
 
 def get_src_requirement(dist, location):
     version_control = vcs.get_backend_from_location(location)

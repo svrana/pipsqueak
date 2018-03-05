@@ -37,17 +37,18 @@ def _new_descriptor():
 def _fill_type(req, desc):
     if req.link:
         link = req.link
-        for backend in vcs.backends:
-            if link.scheme in backend.schemes:
-                location, version = backend(str(link)).get_url_rev()
+        for backend_cls in vcs.backends:
+            if link.scheme in backend_cls.schemes:
+                location, version = backend_cls(str(link)).get_url_rev()
                 if '+' in link.scheme:
                     protocol = link.scheme.split('+')[1]
                 else:
                     protocol = link.scheme
 
+                desc['link'] = str(link)
                 desc['type'] = 'version_control'
                 desc['version_control'] = dict(
-                    type=backend.name,
+                    type=backend_cls.name,
                     protocol=protocol,
                     location=location,
                     version=version,
@@ -147,10 +148,17 @@ def parse_requirements_file(requirements):
     return {canonicalize_name(k):_ireq_to_desc(v)
             for k,v in reqs.iteritems()}
 
-def _get_installed_packages():
+def _get_installed_as_dist():
+    installed = {}
+    # pylint: disable=E1133
+    for p in pkg_resources.working_set:
+        installed[canonicalize_name(p.project_name)] = p
+    return installed
+
+def _get_installed_as_frozen_reqs():
     installations = {}
 
-    for dist in pkg_resources.working_set:
+    for name, dist in _get_installed_as_dist().iteritems():
         try:
             req = FrozenRequirement.from_dist(dist, [])
         except Exception:
@@ -160,7 +168,7 @@ def _get_installed_packages():
             )
             continue
 
-        installations[req.name] = req
+        installations[name] = req
 
     return installations
 
@@ -203,17 +211,45 @@ def _command_line_report(args):
     return len(diff)
 
 def parse_installed():
-    installed = _get_installed_packages()
-    reqs = [ str(dist.req) for dist in installed.itervalues() ]
-    required = _parse_requirements_iterable(reqs)
-    return required, installed
+    installed_frozen = _get_installed_as_frozen_reqs()
+    reqs = [str(dist.req) for dist in installed_frozen.itervalues()]
+    installed_reqs = _parse_requirements_iterable(reqs)
+    return installed_reqs, installed_frozen
+
+def _compare_versions(installed, required, dist):
+    diff = {}
+
+    installed_vc = installed['version_control']
+    required_vc = required['version_control']
+
+    backend_cls = vcs.get_backend(installed_vc['type'])
+
+    if required_vc.get('version') == None:
+        installed_backend = backend_cls(dist.req)
+        required_backend = backend_cls(required['link'])
+        url, url_rev = required_backend.get_url_rev()
+        rev_options = required_backend.make_rev_options(url_rev)
+
+        installed_backend.check_destination(dist.location, url, rev_options)
+        #diff[name]['version_control'] = defaultdict(lambda: defaultdict(dict))
+
+        # branch/revision not specified, so we need to check if the current rev
+        # is the latest rev on the upstream branch, as that's what a pip
+        # install would do.
+
+    # if installed_vc.get('version') != required_vc.get('version'):
+    #     diff[name]['version_control']['version']['installed'] = installed_vc.get('version')
+    #     diff[name]['version_control']['version']['required'] = required_vc.get('version')
+    #     diff[name]['version_control']['location']['installed'] = installed_frozen[name].location
+
+    return diff
 
 def report(requirements):
     required = parse_requirements_file(requirements)
     for _, details in required.iteritems():
         details['source'] = None
 
-    installed, unused = parse_installed()
+    installed, installed_frozen = parse_installed()
     installed = { k:_ireq_to_desc(v) for k,v in installed.iteritems() }
 
     diff = defaultdict(lambda: defaultdict(dict))
@@ -228,21 +264,18 @@ def report(requirements):
             continue
 
         if installed[name] != details:
-            if installed[name]['type'] != details['type']:
-                diff[name]['type']['installed'] = installed[name]['type']
-                diff[name]['type']['required'] = details['type']
-
+            # TODO: add type detection, i.e., which source control or pypi, etc.
             installed_vc = installed[name]['version_control']
             required_vc = details['version_control']
             if installed_vc and required_vc and installed_vc != required_vc:
-                diff[name]['version_control'] = defaultdict(lambda: defaultdict(dict))
-
                 if installed_vc.get('type') != required_vc.get('type'):
+                    diff[name]['version_control'] = defaultdict(lambda: defaultdict(dict))
                     diff[name]['version_control']['type']['installed'] = installed_vc.get('type') #if installed_vc.get('type')
                     diff[name]['version_control']['type']['required'] = required_vc.get('type') #if required_vc.get('type')
-                if installed_vc.get('version') != required_vc.get('version'):
-                    diff[name]['version_control']['version']['installed'] = installed_vc.get('version') #if installed_vc.get('version')
-                    diff[name]['version_control']['version']['required'] = required_vc.get('version') #if required_vc.get('version')
+                else:
+                    vc_diff = _compare_versions(installed[name], details, installed_frozen[name])
+                    if vc_diff:
+                        diff[name]['version_control'] = vc_diff
 
             if installed[name]['specifiers'] != details['specifiers']:
                 if not _versions_match(details['specifiers'], installed[name]['specifiers']):
