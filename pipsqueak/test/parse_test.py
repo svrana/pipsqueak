@@ -20,10 +20,12 @@ class TestParse(unittest.TestCase):
         pass
 
     def test_e_git_egg(self):
-        self.desc = _parse_requirement("-e git://github.com/ContextLogic/wheezy-captcha.git#egg=wheezy.captcha")
+        repo_link = "git+git://github.com/ContextLogic/wheezy-captcha.git#egg=wheezy.captcha"
+        self.desc = _parse_requirement("-e {}".format(repo_link))
         self.assertEqual(self.desc, default_desc(
             project_name="wheezy.captcha",
             editable=True,
+            link=repo_link,
             version_control=dict(
                 type="git",
                 protocol="git",
@@ -41,9 +43,11 @@ class TestParse(unittest.TestCase):
         ))
 
     def test_two_versions(self):
-        self.desc = _parse_requirement("git+git://github.com/svrana/pipsqueak.git@7f9405aaf3935aa4569a803#egg=pipsqueak== 0.1.0")
+        repo_link = "git+git://github.com/svrana/pipsqueak.git@7f9405aaf3935aa4569a803#egg=pipsqueak== 0.1.0"
+        self.desc = _parse_requirement(repo_link)
         self.assertEqual(self.desc, default_desc(
             project_name="pipsqueak",
+            link=repo_link,
             version_control=dict(
                 type="git",
                 protocol="git",

@@ -264,13 +264,20 @@ class VersionControl(object):
     def get_url(self, location):
         """
         Return the url used at location
-        Used in get_info or check_destination
+        Used in get_info or is_most_recent
         """
         raise NotImplementedError
 
     def get_revision(self, location):
         """
         Return the current commit id of the files at the given location.
+        """
+        raise NotImplementedError
+
+    def get_latest_revision(self, url, rev):
+        """
+        Return the latest commit id specified by revision name (branch or tag)
+        from the repo located at url.
         """
         raise NotImplementedError
 
@@ -313,15 +320,23 @@ class VersionControl(object):
             else:
                 raise  # re-raise exception if a different error occurred
 
-    def check_destination(self, dest, url, rev_options):
+    def is_most_recent(self, dest, url, rev_options):
         """
-        Return True if the location requires a checkout/clone to match url and
-        rev_options specified, False otherwise.
+        Return commit id ahead of the current location of dest if dest is
+        behind upstream according to its rev_options. If rev_options does not
+        contain a commit id, we must fetch the most recent commit ids from the
+        upstream repo. To avoid going to the network, always specify a commit
+        id instead of a branch. This has the benefit of producing reproducable
+        builds.
+
+        Modified from check_destination in pip.
 
         Args:
           rev_options: a RevOptions object.
         """
         existing_url = self.get_url(dest)
+        upstream_rev = 'unknown'
+
         if self.compare_urls(existing_url, url):
             logger.debug(
                 '%s in %s exists, and has correct URL (%s)',
@@ -329,14 +344,15 @@ class VersionControl(object):
                 display_path(dest),
                 url,
             )
-            if not self.is_commit_id_equal(dest, rev_options.rev):
-                return False
-                # pull upstream refs
-                # check again
-                #import pdb ; pdb.set_trace()
+            if self.is_commit_id_equal(dest, rev_options.rev):
+                return True, ""
 
+            current_rev = self.get_revision(dest)
+            upstream_rev = self.get_latest_revision(url, rev_options.rev)
+            if current_rev == upstream_rev:
+                return True, ""
 
-        return False
+        return False, upstream_rev
 
 
 def get_src_requirement(dist, location):

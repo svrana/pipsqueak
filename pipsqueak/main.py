@@ -207,29 +207,21 @@ def parse_installed():
 
 def _compare_versions(installed, required, dist):
     diff = {}
-
     installed_vc = installed['version_control']
-    required_vc = required['version_control']
-
     backend_cls = vcs.get_backend(installed_vc['type'])
 
-    if required_vc.get('version') == None:
-        installed_backend = backend_cls(dist.req)
-        required_backend = backend_cls(required['link'])
-        url, url_rev = required_backend.get_url_rev()
-        rev_options = required_backend.make_rev_options(url_rev)
+    installed_backend = backend_cls(dist.req)
+    required_backend = backend_cls(required['link'])
+    url, url_rev = required_backend.get_url_rev()
+    rev_options = required_backend.make_rev_options(url_rev)
 
-        installed_backend.check_destination(dist.location, url, rev_options)
-        #diff[name]['version_control'] = defaultdict(lambda: defaultdict(dict))
-
-        # branch/revision not specified, so we need to check if the current rev
-        # is the latest rev on the upstream branch, as that's what a pip
-        # install would do.
-
-    # if installed_vc.get('version') != required_vc.get('version'):
-    #     diff[name]['version_control']['version']['installed'] = installed_vc.get('version')
-    #     diff[name]['version_control']['version']['required'] = required_vc.get('version')
-    #     diff[name]['version_control']['location']['installed'] = installed_frozen[name].location
+    is_most_recent, upstream_version = installed_backend.is_most_recent(
+        dist.location, url, rev_options
+    )
+    if not is_most_recent:
+        diff = defaultdict(lambda: defaultdict(dict))
+        diff['version']['installed'] = installed_vc.get('version')
+        diff['version']['required'] = upstream_version
 
     return diff
 
@@ -253,18 +245,24 @@ def report(requirements):
             continue
 
         if installed[name] != details:
-            # TODO: add type detection, i.e., which source control or pypi, etc.
             installed_vc = installed[name]['version_control']
             required_vc = details['version_control']
-            if installed_vc and required_vc and installed_vc != required_vc:
-                if installed_vc.get('type') != required_vc.get('type'):
-                    diff[name]['version_control'] = defaultdict(lambda: defaultdict(dict))
-                    diff[name]['version_control']['type']['installed'] = installed_vc.get('type') #if installed_vc.get('type')
-                    diff[name]['version_control']['type']['required'] = required_vc.get('type') #if required_vc.get('type')
-                else:
-                    vc_diff = _compare_versions(installed[name], details, installed_frozen[name])
-                    if vc_diff:
-                        diff[name]['version_control'] = vc_diff
+            if installed_vc and required_vc:
+                if installed_vc != required_vc:
+                    if installed_vc.get('type') != required_vc.get('type'):
+                        diff[name]['version_control'] = defaultdict(lambda: defaultdict(dict))
+                        diff[name]['version_control']['type']['installed'] = installed_vc.get('type') #if installed_vc.get('type')
+                        diff[name]['version_control']['type']['required'] = required_vc.get('type') #if required_vc.get('type')
+                    else:
+                        vc_diff = _compare_versions(installed[name], details, installed_frozen[name])
+                        if vc_diff:
+                            diff[name]['version_control'] = vc_diff
+            elif not installed_vc and not required_vc:
+                pass
+            elif (installed_vc and not required_vc) or (not installed_vc and required_vc):
+                diff[name]['version_control'] = defaultdict(lambda: defaultdict(dict))
+                diff[name]['version_control']['type']['installed'] = installed_vc['type'] if installed_vc else 'No source control'
+                diff[name]['version_control']['type']['required'] = required_vc['type'] if required_vc else 'No source control'
 
             if installed[name]['specifiers'] != details['specifiers']:
                 if not _versions_match(details['specifiers'], installed[name]['specifiers']):

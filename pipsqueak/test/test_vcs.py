@@ -10,10 +10,12 @@ class TestVcs(unittest.TestCase):
     desc = None
 
     def test_can_parse_svn(self):
-        self.desc = _parse_requirement("svn+http://myrepo/svn/MyApp#egg=MyApp")
+        repo_link = "svn+http://myrepo/svn/MyApp#egg=MyApp"
+        self.desc = _parse_requirement(repo_link)
         self.assertEqual(self.desc, default_desc(
             project_name="MyApp",
             type="version_control",
+            link=repo_link,
             version_control=dict(
                 type='svn',
                 protocol='http',
@@ -23,10 +25,12 @@ class TestVcs(unittest.TestCase):
         ))
 
     def test_can_parse_mercurial(self):
-        self.desc = _parse_requirement("hg+https://myrepo/hg/MyApp#egg=MyApp")
+        repo_link = "hg+https://myrepo/hg/MyApp#egg=MyApp"
+        self.desc = _parse_requirement(repo_link)
         self.assertEqual(self.desc, default_desc(
             project_name="MyApp",
             type="version_control",
+            link=repo_link,
             version_control=dict(
                 type="hg",
                 protocol="https",
@@ -36,10 +40,12 @@ class TestVcs(unittest.TestCase):
         ))
 
     def test_git_branch(self):
-        self.desc = _parse_requirement("git+git://github.com/tornadoweb/tornado.git@branch4.5.1#egg=tornado")
+        repo_link = "git+git://github.com/tornadoweb/tornado.git@branch4.5.1#egg=tornado"
+        self.desc = _parse_requirement(repo_link)
         self.assertEqual(self.desc, default_desc(
             project_name="tornado",
             type="version_control",
+            link=repo_link,
             version_control=dict(
                 type="git",
                 protocol="git",

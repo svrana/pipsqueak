@@ -161,6 +161,28 @@ class Git(VersionControl):
         )
         return current_rev.strip()
 
+    def get_latest_revision(self, url, rev):
+        if not rev:
+            rev = 'master'
+
+        output = self.run_command(['ls-remote', url, rev])
+        refs = {}
+        for line in output.strip().splitlines():
+            try:
+                sha, ref = line.split()
+            except ValueError:
+                # Include the offending line to simplify troubleshooting if
+                # this error ever occurs.
+                raise ValueError('unexpected show-ref line: {!r}'.format(line))
+
+            refs[ref] = sha
+
+        branch_ref = 'refs/heads/{}'.format(rev)
+        tag_ref = 'refs/tags/{}'.format(rev)
+
+        return refs.get(branch_ref) or refs.get(tag_ref)
+
+
     def _get_subdirectory(self, location):
         """Return the relative path of setup.py to the git repo root."""
         # find the repo root
