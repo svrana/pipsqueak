@@ -1,6 +1,0 @@
-codecov
-pytest-cov
-pypandoc
-ipdb
-pylint~=1.5.4
-pytz==2012d
