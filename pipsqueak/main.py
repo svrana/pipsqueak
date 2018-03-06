@@ -20,7 +20,13 @@ from pipsqueak.pip.util import get_used_vcs_backend, is_file_url
 from pipsqueak.pip.req_install import InstallRequirement
 
 
+stream_handler = logging.StreamHandler()
+formatter = logging.Formatter('%(asctime)s %(levelname)s %(message)s')
+stream_handler.setFormatter(formatter)
+root_logger = logging.getLogger('')
+root_logger.addHandler(stream_handler)
 logger = logging.getLogger(__file__)
+
 
 def _new_descriptor():
     desc = dict(
@@ -251,8 +257,8 @@ def report(requirements):
                 if installed_vc != required_vc:
                     if installed_vc.get('type') != required_vc.get('type'):
                         diff[name]['version_control'] = defaultdict(lambda: defaultdict(dict))
-                        diff[name]['version_control']['type']['installed'] = installed_vc.get('type') #if installed_vc.get('type')
-                        diff[name]['version_control']['type']['required'] = required_vc.get('type') #if required_vc.get('type')
+                        diff[name]['version_control']['type']['installed'] = installed_vc.get('type')
+                        diff[name]['version_control']['type']['required'] = required_vc.get('type')
                     else:
                         vc_diff = _compare_versions(installed[name], details, installed_frozen[name])
                         if vc_diff:
@@ -273,9 +279,13 @@ def report(requirements):
 
 def main():
     ap = argparse.ArgumentParser(description='Parse and compare python dependencies')
+    ap.add_argument('--logging', choices=['info', 'warn', 'debug'],
+                           help='log level', default='info')
     ap.add_argument('command', choices=['report'])
     ap.add_argument('args', nargs=argparse.REMAINDER)
     args = ap.parse_args()
+
+    logger.setLevel(args.logging.upper())
 
     return _command_line_report(args.args)
 
