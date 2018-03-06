@@ -20,13 +20,13 @@ dev_requires = get_requirements('dev')
 
 setup(name='pipsqueak',
       version=__version__,
-      description='Parse pip requirements files and retrieve package information for installed python packages',
+      description='Parse pip requirements files and retrieve package information for installed packages',
       long_description=long_description,
       url='http://github.com/svrana/pipsqueak',
       author='Shaw Vrana',
       author_email='shaw@vranix.com',
       license='MIT',
-      packages=find_packages('.'),
+      packages=find_packages('.', exclude=["*.test", "*.test.*", "test.*", "test"]),
       include_package_data=True,
       classifiers=[
         'License :: OSI Approved :: MIT License',
