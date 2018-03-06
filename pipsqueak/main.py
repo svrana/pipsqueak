@@ -219,16 +219,25 @@ def _compare_versions(installed, required, dist):
     installed_backend = backend_cls(dist.req)
     required_backend = backend_cls(required['link'])
     url, url_rev = required_backend.get_url_rev()
-    rev_options = required_backend.make_rev_options(url_rev)
 
-    is_most_recent, upstream_version = installed_backend.is_most_recent(
-        dist.location, url, rev_options
-    )
-    if not is_most_recent:
+    if not installed_backend.check_destination(dist.location, url):
         diff = defaultdict(lambda: defaultdict(dict))
-        diff['version']['installed'] = installed_vc.get('version')
-        diff['version']['required'] = upstream_version
+        diff['location']['installed'] = installed_backend.get_url(dist)
+        diff['location']['required'] = dist.location
+        return diff
 
+    rev_options = required_backend.make_rev_options(url_rev)
+    if installed_backend.is_commit_id_equal(dist.location, rev_options.rev):
+        return None
+
+    installed_rev = installed_backend.get_revision(dist.location)
+    upstream_rev = installed_backend.get_latest_revision(url, rev_options.rev)
+    if installed_rev == upstream_rev:
+        return None
+
+    diff = defaultdict(lambda: defaultdict(dict))
+    diff['version']['installed'] = installed_rev
+    diff['version']['required'] = upstream_rev
     return diff
 
 def report(requirements):
@@ -263,8 +272,6 @@ def report(requirements):
                         vc_diff = _compare_versions(installed[name], details, installed_frozen[name])
                         if vc_diff:
                             diff[name]['version_control'] = vc_diff
-            elif not installed_vc and not required_vc:
-                pass
             elif (installed_vc and not required_vc) or (not installed_vc and required_vc):
                 diff[name]['version_control'] = defaultdict(lambda: defaultdict(dict))
                 diff[name]['version_control']['type']['installed'] = installed_vc['type'] if installed_vc else 'No source control'

@@ -264,7 +264,6 @@ class VersionControl(object):
     def get_url(self, location):
         """
         Return the url used at location
-        Used in get_info or is_most_recent
         """
         raise NotImplementedError
 
@@ -320,23 +319,11 @@ class VersionControl(object):
             else:
                 raise  # re-raise exception if a different error occurred
 
-    def is_most_recent(self, dest, url, rev_options):
+    def check_destination(self, dest, url):
         """
-        Return commit id ahead of the current location of dest if dest is
-        behind upstream according to its rev_options. If rev_options does not
-        contain a commit id, we must fetch the most recent commit ids from the
-        upstream repo. To avoid going to the network, always specify a commit
-        id instead of a branch. This has the benefit of producing reproducable
-        builds.
-
-        Modified from check_destination in pip.
-
-        Args:
-          rev_options: a RevOptions object.
+        Check if the disk location specified by dist is tracking the supplied vcs url.
         """
         existing_url = self.get_url(dest)
-        upstream_rev = 'unknown'
-
         if self.compare_urls(existing_url, url):
             logger.debug(
                 '%s in %s exists, and has correct URL (%s)',
@@ -344,15 +331,9 @@ class VersionControl(object):
                 display_path(dest),
                 url,
             )
-            if self.is_commit_id_equal(dest, rev_options.rev):
-                return True, ""
+            return True
 
-            current_rev = self.get_revision(dest)
-            upstream_rev = self.get_latest_revision(url, rev_options.rev)
-            if current_rev == upstream_rev:
-                return True, ""
-
-        return False, upstream_rev
+        return False
 
 
 def get_src_requirement(dist, location):
