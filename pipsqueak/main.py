@@ -184,7 +184,7 @@ def _command_line_report(args):
         description='Parse and manipulate pip dependencies'
     )
     ap.add_argument(
-        '--file',
+        '--file', '-f',
         type=str,
         default='requirements.txt',
         help='pip-requirements file',
