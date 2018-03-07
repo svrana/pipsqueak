@@ -182,7 +182,6 @@ class Git(VersionControl):
 
         return refs.get(branch_ref) or refs.get(tag_ref)
 
-
     def _get_subdirectory(self, location):
         """Return the relative path of setup.py to the git repo root."""
         # find the repo root
@@ -258,5 +257,6 @@ class Git(VersionControl):
             logger.debug("could not determine if %s is under git control "
                          "because git is not available", location)
             return False
+
 
 vcs.register(Git)

@@ -8,7 +8,6 @@ import logging
 
 from six.moves.urllib import parse as urllib_parse
 from six.moves.urllib import request as urllib_request
-from six.moves.urllib.parse import unquote as urllib_unquote
 
 from pipsqueak.pip.compat import console_to_str, expanduser
 
@@ -23,6 +22,7 @@ ARCHIVE_EXTENSIONS = (
     ZIP_EXTENSIONS + BZ2_EXTENSIONS + TAR_EXTENSIONS + XZ_EXTENSIONS
 )
 
+
 def display_path(path):
     """Gives the display value for a given path, making it relative to cwd
     if possible."""
@@ -34,6 +34,7 @@ def display_path(path):
         path = '.' + path[len(os.getcwd()):]
     return path
 
+
 def is_installable_dir(path):
     """Return True if `path` is a directory containing a setup.py file."""
     if not os.path.isdir(path):
@@ -43,6 +44,7 @@ def is_installable_dir(path):
         return True
     return False
 
+
 def splitext(path):
     """Like os.path.splitext, but take off .tar too"""
     base, ext = posixpath.splitext(path)
@@ -51,6 +53,7 @@ def splitext(path):
         base = base[:-4]
     return base, ext
 
+
 def is_url(name):
     """Returns true if the name looks like a URL"""
     if ':' not in name:
@@ -58,6 +61,7 @@ def is_url(name):
     from pipsqueak.pip.vcs import vcs
     scheme = name.split(':', 1)[0].lower()
     return scheme in ['http', 'https', 'file', 'ftp'] + vcs.all_schemes
+
 
 def url_to_path(url):
     """
@@ -75,6 +79,7 @@ def url_to_path(url):
     path = urllib_request.url2pathname(netloc + path)
     return path
 
+
 def path_to_url(path):
     """
     Convert a path to a file: URL.  The path will be made absolute and have
@@ -84,12 +89,14 @@ def path_to_url(path):
     url = urllib_parse.urljoin('file:', urllib_request.pathname2url(path))
     return url
 
+
 def is_archive_file(name):
     """Return True if `name` is a considered as an archive file."""
     ext = splitext(name)[1].lower()
     if ext in ARCHIVE_EXTENSIONS:
         return True
     return False
+
 
 def get_used_vcs_backend(link):
     from pipsqueak.pip.vcs import vcs
@@ -98,6 +105,7 @@ def get_used_vcs_backend(link):
         if link.scheme in backend.schemes:
             vcs_backend = backend(link.url)
             return vcs_backend
+
 
 def call_subprocess(cmd, cwd=None,
                     on_returncode='raise',
@@ -180,6 +188,7 @@ def call_subprocess(cmd, cwd=None,
                              repr(on_returncode))
     return ''.join(all_output)
 
+
 def normalize_path(path, resolve_symlinks=True):
     """
     Convert a path to its canonical, case-normalized, absolute version.
@@ -192,6 +201,7 @@ def normalize_path(path, resolve_symlinks=True):
         path = os.path.abspath(path)
     return os.path.normcase(path)
 
+
 def dist_is_editable(dist):
     """ Is distribution an editable install? """
     for path_item in sys.path:
@@ -199,6 +209,7 @@ def dist_is_editable(dist):
         if os.path.isfile(egg_link):
             return True
     return False
+
 
 def is_file_url(link):
     return link.url.lower().startswith('file:')

@@ -5,9 +5,6 @@ import traceback
 import pkg_resources
 import six
 
-from six.moves.urllib import parse as urllib_parse
-from six.moves.urllib import request as urllib_request
-
 from packaging import specifiers
 from packaging.markers import Marker
 from packaging.requirements import InvalidRequirement, Requirement
@@ -326,12 +323,14 @@ class InstallRequirement(object):
         """
         return bool(self.options.get('hashes', {}))
 
+
 def _strip_postfix(req):
     """ Strip req postfix ( -dev, 0.2, etc ) """
     match = re.search(r'^(.*?)(?:-dev|-\d.*)$', req)
     if match:
         req = match.group(1)
     return req
+
 
 def parse_editable(editable_req):
     """Parses an editable requirement into:
