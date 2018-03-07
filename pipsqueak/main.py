@@ -118,6 +118,7 @@ class IReqSet(object):
         self.reqset = dict()
 
     def add(self, ireq):
+        # TODO: Don't allow dupes unless they are the same
         name = canonicalize_name(ireq.name)
         self.reqset[name] = ireq
 
@@ -275,6 +276,11 @@ def _command_line_report(args):
 
 
 def parse_installed():
+    # TODO: We keep the frozenreq around b/c it has the disk location and
+    # we can easily turn it into a Requirement. Add as_requirement and
+    # from_dist methods to PipReq and store location when created from dist.
+    # to PipReq and store location, i.e., from_dist() Or just store the dist
+    # too.
     installed_frozen = _get_installed_as_frozen_reqs()
     reqs = [str(dist.req) for dist in installed_frozen.itervalues()]
     installed_reqs = _parse_requirements_iterable(reqs)
