@@ -4,6 +4,7 @@ import logging
 import json
 import os.path
 import shlex
+from multiprocessing import Pool
 
 from packaging.specifiers import (
     Specifier,
@@ -224,7 +225,7 @@ def _compare_versions(installed, required, dist):
         diff = defaultdict(lambda: defaultdict(dict))
         diff['location']['installed'] = installed_backend.get_url(dist)
         diff['location']['required'] = dist.location
-        return diff
+        return dict(diff)
 
     rev_options = required_backend.make_rev_options(url_rev)
     if installed_backend.is_commit_id_equal(dist.location, rev_options.rev):
@@ -238,7 +239,32 @@ def _compare_versions(installed, required, dist):
     diff = defaultdict(lambda: defaultdict(dict))
     diff['version']['installed'] = installed_rev
     diff['version']['required'] = upstream_rev
-    return diff
+
+    return dict(diff) # convert to dict for pickling during multiprocessing
+
+def _grab_vc_version_info(installed, required, frozen):
+    diff = defaultdict(lambda: defaultdict(dict))
+
+    check = []
+    for name, _ in required.iteritems():
+        if name not in installed:
+            continue
+        installed_vc = installed[name]['version_control']
+        required_vc = installed[name]['version_control']
+        if installed_vc and required_vc and installed_vc['type'] == required_vc['type']:
+            check.append(name)
+
+    pool = Pool()
+    for name in check:
+        diff[name] = pool.apply_async(
+            _compare_versions,
+            (installed[name], required[name], frozen[name])
+        )
+    pool.close()
+    pool.join()
+
+    consume = {name: obj.get() for name, obj in diff.iteritems() if obj.get()}
+    return consume
 
 def report(requirements):
     required = parse_requirements_file(requirements)
@@ -247,6 +273,8 @@ def report(requirements):
 
     installed, installed_frozen = parse_installed()
     installed = { k:_ireq_to_desc(v) for k,v in installed.iteritems() }
+
+    version_info = _grab_vc_version_info(installed, required, installed_frozen)
 
     diff = defaultdict(lambda: defaultdict(dict))
 
@@ -266,12 +294,11 @@ def report(requirements):
                 if installed_vc != required_vc:
                     if installed_vc.get('type') != required_vc.get('type'):
                         diff[name]['version_control'] = defaultdict(lambda: defaultdict(dict))
-                        diff[name]['version_control']['type']['installed'] = installed_vc.get('type')
-                        diff[name]['version_control']['type']['required'] = required_vc.get('type')
+                        diff[name]['version_control']['type']['installed'] = installed_vc['type']
+                        diff[name]['version_control']['type']['required'] = required_vc.get['type']
                     else:
-                        vc_diff = _compare_versions(installed[name], details, installed_frozen[name])
-                        if vc_diff:
-                            diff[name]['version_control'] = vc_diff
+                        if name in version_info:
+                            diff[name]['version_control'] = version_info[name]
             elif (installed_vc and not required_vc) or (not installed_vc and required_vc):
                 diff[name]['version_control'] = defaultdict(lambda: defaultdict(dict))
                 diff[name]['version_control']['type']['installed'] = installed_vc['type'] if installed_vc else 'No source control'
