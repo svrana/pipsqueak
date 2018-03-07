@@ -4,8 +4,6 @@ import logging
 import os
 import re
 
-from six.moves.urllib import parse as urllib_parse
-
 from pipsqueak.pip.link import Link
 from pipsqueak.pip.vcs import VersionControl, vcs
 from pipsqueak.pip.util import display_path
@@ -178,5 +176,6 @@ class Subversion(VersionControl):
     def is_commit_id_equal(self, dest, name):
         """Always assume the versions don't match"""
         return False
+
 
 vcs.register(Subversion)

@@ -17,6 +17,7 @@ def constraints():
         'This option can be used multiple times.'
     )
 
+
 def requirements():
     return Option(
         '-r', '--requirement',
@@ -27,6 +28,7 @@ def requirements():
         help='Install from the given requirements file. '
         'This option can be used multiple times.'
     )
+
 
 def editable():
     return Option(
@@ -39,6 +41,7 @@ def editable():
               '"develop mode") from a local project path or a VCS url.'),
     )
 
+
 no_index = partial(
     Option,
     '--no-index',
@@ -47,6 +50,7 @@ no_index = partial(
     default=False,
     help='Ignore package index (only looking at --find-links URLs instead).',
 )
+
 
 def find_links():
     return Option(
@@ -60,6 +64,7 @@ def find_links():
              "then look for archives in the directory listing.",
     )
 
+
 def trusted_host():
     return Option(
         "--trusted-host",
@@ -70,6 +75,7 @@ def trusted_host():
         help="Mark this host as trusted, even though it does not have valid "
              "or any HTTPS.",
     )
+
 
 index_url = partial(
     Option,
@@ -83,6 +89,7 @@ index_url = partial(
          "in the same format.",
 )
 
+
 def extra_index_url():
     return Option(
         '--extra-index-url',
@@ -94,6 +101,7 @@ def extra_index_url():
              "--index-url. Should follow the same rules as "
              "--index-url.",
     )
+
 
 require_hashes = partial(
     Option,
@@ -136,6 +144,7 @@ def break_args_options(line):
             options.pop(0)
     return ' '.join(args), ' '.join(options)
 
+
 def build_parser(line):
     """
     Return a parser for parsing requirement lines
@@ -149,7 +158,7 @@ def build_parser(line):
 
     # By default optparse sys.exits on parsing errors. We want to wrap
     # that in our own exception.
-    def parser_exit(self, msg):
+    def parser_exit(_, msg):
         # add offending line
         msg = 'Invalid requirement: %s\n%s' % (line, msg)
         raise RequirementsFileParseError(msg)

@@ -41,6 +41,7 @@ def _new_descriptor():
     )
     return desc
 
+
 def _fill_type(req, desc):
     if req.link:
         vcs_backend = get_used_vcs_backend(req.link)
@@ -64,7 +65,8 @@ def _fill_type(req, desc):
             desc['type'] = 'file'
             return
 
-    desc['type'] = 'pypi' # need a better descriptor for this
+    desc['type'] = 'pypi'  # need a better descriptor for this
+
 
 def _ireq_to_desc(ireq):
     desc = _new_descriptor()
@@ -81,14 +83,17 @@ def _ireq_to_desc(ireq):
 
     return desc
 
+
 def _parse_requirement(req):
     reqset = {}
     _process_line(req, reqset)
     desc = _ireq_to_desc(reqset[reqset.keys()[0]])
     return desc
 
+
 def _add_ireq(reqset, ireq):
     reqset[canonicalize_name(ireq.name)] = ireq
+
 
 def _process_line(line, reqset, source=None, lineno=None):
     parser = build_parser(line)
@@ -117,12 +122,14 @@ def _process_line(line, reqset, source=None, lineno=None):
     else:
         raise Exception("Failed to process requirement", line)
 
+
 def _yield_lines(strs):
     """ Yield non-empty/non-comment lines with their line numbers. """
     for lineno, line in enumerate(strs):
         line = line.strip()
         if line and not line.startswith('#'):
             yield lineno+1, line
+
 
 def _parse_requirements_iterable(reqs, source=None):
     reqset = {}
@@ -132,6 +139,7 @@ def _parse_requirements_iterable(reqs, source=None):
 
     return reqset
 
+
 def _parse_requirements_file(requirements):
     requirements = os.path.abspath(requirements)
     if not os.path.exists(requirements):
@@ -140,10 +148,12 @@ def _parse_requirements_file(requirements):
     with open(requirements) as reqs:
         return _parse_requirements_iterable(reqs, source=requirements)
 
+
 def parse_requirements_file(requirements):
     reqs = _parse_requirements_file(requirements)
-    return {canonicalize_name(k):_ireq_to_desc(v)
-            for k,v in reqs.iteritems()}
+    return {canonicalize_name(k): _ireq_to_desc(v)
+            for k, v in reqs.iteritems()}
+
 
 def _get_installed_as_dist():
     installed = {}
@@ -151,6 +161,7 @@ def _get_installed_as_dist():
     for p in pkg_resources.working_set:
         installed[canonicalize_name(p.project_name)] = p
     return installed
+
 
 def _get_installed_as_frozen_reqs():
     installations = {}
@@ -168,6 +179,7 @@ def _get_installed_as_frozen_reqs():
 
     return installations
 
+
 def _versions_match(required, installed):
     if required is None:
         return True
@@ -179,6 +191,7 @@ def _versions_match(required, installed):
 
     contains = req.contains(installed[2:])
     return contains
+
 
 def _command_line_report(args):
     ap = argparse.ArgumentParser(
@@ -206,11 +219,13 @@ def _command_line_report(args):
         print json.dumps(diff, indent=4)
     return len(diff)
 
+
 def parse_installed():
     installed_frozen = _get_installed_as_frozen_reqs()
     reqs = [str(dist.req) for dist in installed_frozen.itervalues()]
     installed_reqs = _parse_requirements_iterable(reqs)
     return installed_reqs, installed_frozen
+
 
 def _compare_versions(installed, required, dist):
     diff = {}
@@ -229,18 +244,20 @@ def _compare_versions(installed, required, dist):
 
     rev_options = required_backend.make_rev_options(url_rev)
     if installed_backend.is_commit_id_equal(dist.location, rev_options.rev):
-        return None
+        return diff
 
     installed_rev = installed_backend.get_revision(dist.location)
     upstream_rev = installed_backend.get_latest_revision(url, rev_options.rev)
     if installed_rev == upstream_rev:
-        return None
+        return diff
 
     diff = defaultdict(lambda: defaultdict(dict))
     diff['version']['installed'] = installed_rev
     diff['version']['required'] = upstream_rev
 
-    return dict(diff) # convert to dict for pickling during multiprocessing
+    # convert to dict for pickling that occurs during multiprocessing
+    return dict(diff)
+
 
 def _grab_vc_version_info(installed, required, frozen):
     diff = defaultdict(lambda: defaultdict(dict))
@@ -251,7 +268,8 @@ def _grab_vc_version_info(installed, required, frozen):
             continue
         installed_vc = installed[name]['version_control']
         required_vc = installed[name]['version_control']
-        if installed_vc and required_vc and installed_vc['type'] == required_vc['type']:
+        if (installed_vc and required_vc and
+                installed_vc['type'] == required_vc['type']):
             check.append(name)
 
     pool = Pool()
@@ -266,13 +284,14 @@ def _grab_vc_version_info(installed, required, frozen):
     consume = {name: obj.get() for name, obj in diff.iteritems() if obj.get()}
     return consume
 
+
 def report(requirements):
     required = parse_requirements_file(requirements)
     for _, details in required.iteritems():
         details['source'] = None
 
     installed, installed_frozen = parse_installed()
-    installed = { k:_ireq_to_desc(v) for k,v in installed.iteritems() }
+    installed = {k: _ireq_to_desc(v) for k, v in installed.iteritems()}
 
     version_info = _grab_vc_version_info(installed, required, installed_frozen)
 
@@ -293,28 +312,40 @@ def report(requirements):
             if installed_vc and required_vc:
                 if installed_vc != required_vc:
                     if installed_vc.get('type') != required_vc.get('type'):
-                        diff[name]['version_control'] = defaultdict(lambda: defaultdict(dict))
-                        diff[name]['version_control']['type']['installed'] = installed_vc['type']
-                        diff[name]['version_control']['type']['required'] = required_vc.get['type']
+                        vc = diff[name]['version_control'] = defaultdict(
+                            lambda: defaultdict(dict)
+                        )
+                        vc['type']['installed'] = installed_vc['type']
+                        vc['type']['required'] = required_vc.get['type']
                     else:
                         if name in version_info:
                             diff[name]['version_control'] = version_info[name]
-            elif (installed_vc and not required_vc) or (not installed_vc and required_vc):
-                diff[name]['version_control'] = defaultdict(lambda: defaultdict(dict))
-                diff[name]['version_control']['type']['installed'] = installed_vc['type'] if installed_vc else 'No source control'
-                diff[name]['version_control']['type']['required'] = required_vc['type'] if required_vc else 'No source control'
+            elif ((installed_vc and not required_vc) or
+                  (not installed_vc and required_vc)):
+                vc = diff[name]['version_control'] = defaultdict(
+                    lambda: defaultdict(dict)
+                )
+                if installed_vc:
+                    vc['type']['installed'] = installed_vc['type']
+                if required_vc:
+                    vc['type']['required'] = required_vc['type']
 
-            if installed[name]['specifiers'] != details['specifiers']:
-                if not _versions_match(details['specifiers'], installed[name]['specifiers']):
-                    diff[name]['specifiers']['installed'] = installed[name]['specifiers']
-                    diff[name]['specifiers']['required'] = details['specifiers']
+            required_specs = details['specifiers']
+            installed_specs = installed[name]['specifiers']
+            if installed_specs != required_specs:
+                if not _versions_match(required_specs, installed_specs):
+                    diff[name]['specifiers']['installed'] = installed_specs
+                    diff[name]['specifiers']['required'] = required_specs
 
     return diff
 
+
 def main():
-    ap = argparse.ArgumentParser(description='Parse and compare python dependencies')
+    ap = argparse.ArgumentParser(
+        description='Parse and compare python dependencies'
+    )
     ap.add_argument('--logging', choices=['info', 'warn', 'debug'],
-                           help='log level', default='info')
+                    help='log level', default='info')
     ap.add_argument('command', choices=['report'])
     ap.add_argument('args', nargs=argparse.REMAINDER)
     args = ap.parse_args()
@@ -322,6 +353,7 @@ def main():
     logger.setLevel(args.logging.upper())
 
     return _command_line_report(args.args)
+
 
 if __name__ == '__main__':
     main()

@@ -1,5 +1,6 @@
 from six.moves.urllib import parse as urllib_parse
 
+
 class Index(object):
     def __init__(self, url):
         self.url = url

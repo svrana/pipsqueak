@@ -17,6 +17,7 @@ install:
     - travis_retry make install
 
 script:
+    - flake8
     - make coverage
 
 after_success:

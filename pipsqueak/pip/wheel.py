@@ -1,11 +1,8 @@
 from __future__ import absolute_import
 
-import logging
 import re
 
 from pipsqueak.exceptions import InvalidWheelFilename
-
-wheel_ext = '.whl'
 
 
 class Wheel(object):

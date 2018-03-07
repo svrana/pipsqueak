@@ -193,7 +193,7 @@ class VersionControl(object):
            posix absolute paths start with os.path.sep,
            win32 ones start with drive (like c:\\folder)
         """
-        drive, tail = os.path.splitdrive(repo)
+        drive, _ = os.path.splitdrive(repo)
         return repo.startswith(os.path.sep) or drive
 
     # See issue #1083 for why this method was introduced:
@@ -321,7 +321,8 @@ class VersionControl(object):
 
     def check_destination(self, dest, url):
         """
-        Check if the disk location specified by dist is tracking the supplied vcs url.
+        Check if the disk location specified by dist is tracking the supplied
+        vcs url.
         """
         existing_url = self.get_url(dest)
         if self.compare_urls(existing_url, url):
@@ -358,7 +359,7 @@ def get_src_requirement(dist, location):
     return dist.as_requirement()
 
 
-import pipsqueak.pip.vcs.git
-import pipsqueak.pip.vcs.bazaar
-import pipsqueak.pip.vcs.mercurial
-import pipsqueak.pip.vcs.subversion
+import pipsqueak.pip.vcs.git            # noqa
+import pipsqueak.pip.vcs.bazaar         # noqa
+import pipsqueak.pip.vcs.mercurial      # noqa
+import pipsqueak.pip.vcs.subversion     # noqa

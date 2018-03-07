@@ -7,6 +7,7 @@ from pipsqueak.pip.util import dist_is_editable
 
 logger = logging.getLogger(__file__)
 
+
 class FrozenRequirement(object):
     def __init__(self, name, req, editable, location, comments=()):
         self.name = name

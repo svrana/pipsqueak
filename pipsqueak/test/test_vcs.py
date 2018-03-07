@@ -1,8 +1,6 @@
 import unittest
 
-from pipsqueak.main import (
-    _parse_requirement,
-)
+from pipsqueak.main import _parse_requirement
 from pipsqueak.test.util import default_desc
 
 
@@ -40,7 +38,8 @@ class TestVcs(unittest.TestCase):
         ))
 
     def test_git_branch(self):
-        repo_link = "git+git://github.com/tornadoweb/tornado.git@branch4.5.1#egg=tornado"
+        repo_link = "git+git://github.com/tornadoweb/tornado.git@branch4.5.1" \
+            "#egg=tornado"
         self.desc = _parse_requirement(repo_link)
         self.assertEqual(self.desc, default_desc(
             project_name="tornado",
