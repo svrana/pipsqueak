@@ -1,2 +1,5 @@
-__version__ = '0.0.13'
-VERSION = tuple(map(int, __version__.split('.')))
+from pipsqueak.main import (    # noqa
+    parse_requirements_file,
+    parse_installed,
+    report,
+)

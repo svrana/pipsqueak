@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 
 from setuptools import setup, find_packages
-from pipsqueak import __version__
 
 try:
     import pypandoc  # also requires the pandoc package
@@ -22,10 +21,11 @@ install_requires = get_requirements('base')
 tests_require = get_requirements('test')
 dev_requires = get_requirements('dev')
 
+version = '0.0.14'
 
 setup(
     name='pipsqueak',
-    version=__version__,
+    version=version,
     description='Parse and compare pip requirements',
     long_description=long_description,
     url='http://github.com/svrana/pipsqueak',
