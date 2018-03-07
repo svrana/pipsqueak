@@ -14,6 +14,7 @@ from packaging.specifiers import (
 from packaging.utils import canonicalize_name
 import pkg_resources
 
+from pipsqueak.exceptions import ConfigurationError, InvalidFieldError
 from pipsqueak.options import break_args_options, build_parser
 from pipsqueak.pip.freeze import FrozenRequirement
 from pipsqueak.pip.vcs import vcs
@@ -29,70 +30,119 @@ root_logger.addHandler(stream_handler)
 logger = logging.getLogger(__file__)
 
 
-def _new_descriptor():
-    desc = dict(
-        editable=False,
-        project_name=None,
-        type=None,
-        source=None,
-        line_number=None,
-        specifiers=None,
-        version_control=None,
-    )
-    return desc
+class PipReq(object):
+    def __init__(self, **kwargs):
+        self.editable = False
+        self.project_name = None
+        self.type = None
+        self.source = None
+        self.line_number = None
+        self.specifiers = None
+        self.version_control = None
+        self.link = None
+        self.ireq = None
+        self.update(**kwargs)
+
+    def update(self, **kwargs):
+        for k, v in kwargs.iteritems():
+            if k not in self.__dict__:
+                raise InvalidFieldError("{} is not a valid field".format(k))
+            setattr(self, k, v)
+
+    def to_dict(self):
+        return {k: v for k, v in self.__dict__.iteritems()
+                if k not in ['link']}
+
+    def __eq__(self, other):
+        if isinstance(self, other.__class__):
+            return self.__dict__ == other.__dict__
+
+    def __ne__(self, other):
+        return not self.__eq__(other)
+
+    def __repr__(self):
+        return repr(self.__dict__)
+
+    @classmethod
+    def from_ireq(cls, req):
+        """ Factory method for PipReq construction given an
+        InstallRequirement.
+        """
+        if req.comes_from:
+            source = req.comes_from.split(':')[0]
+            line_number = int(req.comes_from.split(':')[1])
+        else:
+            source = None
+            line_number = None
+
+        if req.link:
+            vcs_backend = get_used_vcs_backend(req.link)
+            if vcs_backend:
+                location, version = vcs_backend.get_url_rev()
+                if '+' in req.link.scheme:
+                    protocol = req.link.scheme.split('+')[1]
+                else:
+                    protocol = req.link.scheme
+
+                link = req.link.url
+                type = 'version_control'
+                version_control = dict(
+                    type=vcs_backend.name,
+                    protocol=protocol,
+                    location=location,
+                    version=version,
+                )
+            elif is_file_url(req.link.url):
+                type = 'file'
+        else:
+            link = None
+            version_control = None
+            type = 'pypi'
+
+        specifiers = str(req.specifier) if req.specifier else None
+        return cls(
+            project_name=req.name,
+            type=type,
+            editable=req.editable,
+            specifiers=specifiers,
+            source=source,
+            line_number=line_number,
+            version_control=version_control,
+            link=link,
+        )
 
 
-def _fill_type(req, desc):
-    if req.link:
-        vcs_backend = get_used_vcs_backend(req.link)
-        if vcs_backend:
-            location, version = vcs_backend.get_url_rev()
-            if '+' in req.link.scheme:
-                protocol = req.link.scheme.split('+')[1]
-            else:
-                protocol = req.link.scheme
+class IReqSet(object):
+    """ A collection of InstallRequirements """
+    def __init__(self):
+        self.reqset = dict()
 
-            desc['link'] = req.link.url
-            desc['type'] = 'version_control'
-            desc['version_control'] = dict(
-                type=vcs_backend.name,
-                protocol=protocol,
-                location=location,
-                version=version,
-            )
-            return
-        elif is_file_url(req.link.url):
-            desc['type'] = 'file'
-            return
+    def add(self, ireq):
+        name = canonicalize_name(ireq.name)
+        self.reqset[name] = ireq
 
-    desc['type'] = 'pypi'  # need a better descriptor for this
+    def itervalues(self):
+        return self.reqset.itervalues()
 
+    def iteritems(self):
+        return self.reqset.iteritems()
 
-def _ireq_to_desc(ireq):
-    desc = _new_descriptor()
+    def _first(self):
+        return self.reqset[self.reqset.keys()[0]]
 
-    _fill_type(ireq, desc)
-    desc['project_name'] = ireq.name
-    desc['editable'] = ireq.editable
-    desc['specifiers'] = str(ireq.specifier) if ireq.specifier else None
-    desc['source'] = None
-    desc['line_number'] = None
-    if ireq.comes_from:
-        desc['source'] = ireq.comes_from.split(':')[0]
-        desc['line_number'] = int(ireq.comes_from.split(':')[1])
+    def to_dict(self):
+        return self.reqset
 
-    return desc
+    def to_pipreq_dict(self):
+        return {k: PipReq.from_ireq(v) for k, v in self.reqset.iteritems()}
 
 
 def _parse_requirement(req):
-    reqset = {}
+    """ This was used to bootstrap testing and not used.. """
+    reqset = IReqSet()
     _process_line(req, reqset)
-    desc = _ireq_to_desc(reqset[reqset.keys()[0]])
-    return desc
-
-
-def _add_ireq(reqset, ireq):
-    reqset[canonicalize_name(ireq.name)] = ireq
+    pipreq = PipReq.from_ireq(reqset._first())
+    return pipreq
 
 
 def _process_line(line, reqset, source=None, lineno=None):
@@ -108,17 +158,17 @@ def _process_line(line, reqset, source=None, lineno=None):
 
     if args_str:
         ireq = InstallRequirement.from_line(args_str, comes_from=comes_from)
-        _add_ireq(reqset, ireq)
+        reqset.add(ireq)
     elif opts.editables:
         ireq = InstallRequirement.from_editable(
             opts.editables[0],
             comes_from=comes_from
         )
-        _add_ireq(reqset, ireq)
+        reqset.add(ireq)
     elif opts.requirements:
         ireqs = _parse_requirements_file(opts.requirements[0])
         for ireq in ireqs.itervalues():
-            _add_ireq(reqset, ireq)
+            reqset.add(ireq)
     else:
         raise Exception("Failed to process requirement", line)
 
@@ -132,7 +182,7 @@ def _yield_lines(strs):
 
 
 def _parse_requirements_iterable(reqs, source=None):
-    reqset = {}
+    reqset = IReqSet()
 
     for lineno, line in _yield_lines(reqs):
         _process_line(line, reqset, source=source, lineno=lineno)
@@ -143,16 +193,20 @@ def _parse_requirements_iterable(reqs, source=None):
 def _parse_requirements_file(requirements):
     requirements = os.path.abspath(requirements)
     if not os.path.exists(requirements):
-        raise Exception("Could not locate requirements file %s", requirements)
+        raise ConfigurationError("Could not locate requirements file %s",
+                                 requirements)
 
     with open(requirements) as reqs:
         return _parse_requirements_iterable(reqs, source=requirements)
 
 
 def parse_requirements_file(requirements):
-    reqs = _parse_requirements_file(requirements)
-    return {canonicalize_name(k): _ireq_to_desc(v)
-            for k, v in reqs.iteritems()}
+    """ Parse the pip requirements file specified by requirements.
+
+    Return a dictionary from package name to PipReq.
+    """
+    reqset = _parse_requirements_file(requirements)
+    return reqset.to_pipreq_dict()
 
 
 def _get_installed_as_dist():
@@ -229,11 +283,11 @@ def parse_installed():
 
 def _compare_versions(installed, required, dist):
     diff = {}
-    installed_vc = installed['version_control']
+    installed_vc = installed.version_control
     backend_cls = vcs.get_backend(installed_vc['type'])
 
     installed_backend = backend_cls(dist.req)
-    required_backend = backend_cls(required['link'])
+    required_backend = backend_cls(required.link)
     url, url_rev = required_backend.get_url_rev()
 
     if not installed_backend.check_destination(dist.location, url):
@@ -266,8 +320,8 @@ def _grab_vc_version_info(installed, required, frozen):
     for name, _ in required.iteritems():
         if name not in installed:
             continue
-        installed_vc = installed[name]['version_control']
-        required_vc = installed[name]['version_control']
+        installed_vc = installed[name].version_control
+        required_vc = installed[name].version_control
         if (installed_vc and required_vc and
                 installed_vc['type'] == required_vc['type']):
             check.append(name)
@@ -288,10 +342,10 @@ def _grab_vc_version_info(installed, required, frozen):
 def report(requirements):
     required = parse_requirements_file(requirements)
     for _, details in required.iteritems():
-        details['source'] = None
+        details.source = None
 
     installed, installed_frozen = parse_installed()
-    installed = {k: _ireq_to_desc(v) for k, v in installed.iteritems()}
+    installed = installed.to_pipreq_dict()
 
     version_info = _grab_vc_version_info(installed, required, installed_frozen)
 
@@ -299,16 +353,16 @@ def report(requirements):
 
     for name, details in required.iteritems():
         if name not in installed:
-            if details['specifiers']:
-                diff[name]['specifiers'] = details['specifiers']
-            if details['version_control']:
-                diff[name]['version'] = details['version_control']['version']
+            if details.specifiers:
+                diff[name]['specifiers'] = details.specifiers
+            if details.version_control:
+                diff[name]['version'] = details.version_control['version']
             diff[name]['installed'] = 'false'
             continue
 
-        if installed[name] != details:
-            installed_vc = installed[name]['version_control']
-            required_vc = details['version_control']
+        if installed[name] != details.to_dict():
+            installed_vc = installed[name].version_control
+            required_vc = details.version_control
             if installed_vc and required_vc:
                 if installed_vc != required_vc:
                     if installed_vc.get('type') != required_vc.get('type'):
@@ -330,8 +384,8 @@ def report(requirements):
                 if required_vc:
                     vc['type']['required'] = required_vc['type']
 
-            required_specs = details['specifiers']
-            installed_specs = installed[name]['specifiers']
+            required_specs = details.specifiers
+            installed_specs = installed[name].specifiers
             if installed_specs != required_specs:
                 if not _versions_match(required_specs, installed_specs):
                     diff[name]['specifiers']['installed'] = installed_specs

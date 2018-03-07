@@ -1,7 +1,7 @@
 from contextlib import contextmanager
 import os
 
-from pipsqueak.main import _new_descriptor
+from pipsqueak.main import PipReq
 
 
 @contextmanager
@@ -15,12 +15,12 @@ def req_file(filename, contents):
 
 
 def default_desc(**kwargs):
-    desc = _new_descriptor()
+    desc = PipReq()
 
     if 'version_control' in kwargs:
-        desc['type'] = 'version_control'
+        desc.type = 'version_control'
     else:
-        desc['type'] = 'pypi'
+        desc.type = 'pypi'
 
     desc.update(**kwargs)
     return desc

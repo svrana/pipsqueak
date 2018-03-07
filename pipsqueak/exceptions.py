@@ -6,6 +6,10 @@ class PipsqueakError(Exception):
     """Base pipsqueak exception"""
 
 
+class InvalidFieldError(PipsqueakError):
+    pass
+
+
 class ConfigurationError(PipsqueakError):
     """General exception in configuration"""
 
