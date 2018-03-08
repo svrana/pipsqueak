@@ -5,11 +5,11 @@ import unittest
 
 from pipsqueak.main import (
     parse_requirements_file,
-    _parse_requirement,
 )
 from pipsqueak.test.util import (
     req_file,
     default_desc,
+    _parse_requirement,
 )
 
 

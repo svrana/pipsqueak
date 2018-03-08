@@ -1,7 +1,7 @@
 from contextlib import contextmanager
 import os
 
-from pipsqueak.main import PipReq
+from pipsqueak.main import _process_line, PipReq, IReqSet
 
 
 @contextmanager
@@ -24,3 +24,10 @@ def default_desc(**kwargs):
 
     desc.update(**kwargs)
     return desc
+
+
+def _parse_requirement(req):
+    reqset = IReqSet()
+    _process_line(req, reqset)
+    pipreq = PipReq.from_ireq(reqset._first())
+    return pipreq

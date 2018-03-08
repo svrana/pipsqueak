@@ -1,7 +1,9 @@
 import unittest
 
-from pipsqueak.main import _parse_requirement
-from pipsqueak.test.util import default_desc
+from pipsqueak.test.util import (
+    _parse_requirement,
+    default_desc,
+)
 
 
 class TestVcs(unittest.TestCase):

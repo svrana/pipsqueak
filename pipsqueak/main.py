@@ -138,14 +138,6 @@ class IReqSet(object):
         return {k: PipReq.from_ireq(v) for k, v in self.reqset.iteritems()}
 
 
-def _parse_requirement(req):
-    """ This was used to bootstrap testing and not used.. """
-    reqset = IReqSet()
-    _process_line(req, reqset)
-    pipreq = PipReq.from_ireq(reqset._first())
-    return pipreq
-
-
 def _process_line(line, reqset, source=None, lineno=None):
     parser = build_parser(line)
     defaults = parser.get_default_values()
