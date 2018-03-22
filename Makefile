@@ -1,19 +1,13 @@
 .DEFAULT_GOAL := help
 
-help:
-	@echo "Please use 'make <target>' where <target> is one of"
-	@echo " test         run tests"
-	@echo " clean        removes build-related files"
-	@echo " sdist        make a source distribution"
-	@echo " bdist        make an egg distribution"
-	@echo " install      install package"
-	@echo " publish      publish to pypi.python.org"
-	@echo " watch        run tests as code changes"
+
+help: ## Show this help.
+	@awk 'BEGIN {FS = ":.*?## "} /^[a-zA-Z_-]+:.*?## / {sub("\\\\n",sprintf("\n%22c"," "), $$2);printf "\033[36m%-20s\033[0m %s\n", $$1, $$2}' $(MAKEFILE_LIST)
 
 cleanmeta:
 	-rm -rf pipsqueak.egg-info
 
-clean: cleanmeta
+clean: cleanmeta ## removes build-related files
 	-rm -rf dist
 	-rm -rf build
 	-find . -type f -name "*.orig" -exec rm -f "{}" \;
@@ -21,22 +15,22 @@ clean: cleanmeta
 	-find . -type f -name "*.pyc" -exec rm -f "{}" \;
 	-find . -type f -name "*.parse-index" -exec rm -f "{}" \;
 
-sdist: cleanmeta
+sdist: cleanmeta ## Make a source distribution"
 	python setup.py sdist
 
-bdist: cleanmeta
+bdist: cleanmeta ## Make an egg distribution
 	python setup.py bdist_egg
 
-install:
+install: ## Install package
 	python setup.py install
 
-publish:
+publish: ## Publish to pypi.python.org
 	python setup.py sdist upload
 
-test:
+test: ## Run unit tests
 	py.test
 
-shell:
+shell: ## Run ipython shell
 	@ipython -c 'from pipsqueak import *' -i
 
 
@@ -50,11 +44,11 @@ entr-warn:
 	@echo " See http://entrproject.org/                     "
 	@echo "-------------------------------------------------"
 
-watch:
+watch: ## Watch for code changes and run tests as code changes
 	if command -v entr > /dev/null; then ${WATCH_FILES} | \
         entr -c $(MAKE) test; else $(MAKE) test entr-warn; fi
 
-coverage:
+coverage: ## Run coverage report
 	pytest --cov=./ pipsqueak/test
 
 .PHONY: help,cleanmeta,clean,sdist,bdist,install,publish,test,entr-warn,watch-test,coverage
