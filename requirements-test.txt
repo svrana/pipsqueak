@@ -1,4 +1,3 @@
 codecov
 pytest-cov
-pypandoc
 flake8

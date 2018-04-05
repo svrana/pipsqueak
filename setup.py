@@ -2,13 +2,9 @@
 
 from setuptools import setup, find_packages
 
-try:
-    import pypandoc  # also requires the pandoc package
-    long_description = pypandoc.convert('README.md', 'rst')
-except Exception:
-    f = open('README.md')
+
+with open('README.md') as f:
     long_description = f.read()
-    f.close()
 
 
 def get_requirements(env):
